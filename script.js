@@ -765,7 +765,26 @@ function getCurrentTime24() {
   return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 }
 
+function unlockAudio() {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!audioCtx && AudioContextClass) {
+      audioCtx = new AudioContextClass();
+    }
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  } catch (e) {
+    console.warn('Audio unlock notice:', e);
+  }
+}
+
+document.addEventListener('click', unlockAudio, { passive: true });
+document.addEventListener('touchstart', unlockAudio, { passive: true });
+document.addEventListener('keydown', unlockAudio, { passive: true });
+
 function playReminderChime() {
+  unlockAudio();
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass) return;
@@ -773,21 +792,104 @@ function playReminderChime() {
     if (audioCtx.state === 'suspended') audioCtx.resume();
 
     const now = audioCtx.currentTime;
-    [523.25, 659.25, 783.99].forEach((freq, idx) => {
+    // Pleasant musical reminder chime: C5 (523Hz) -> E5 (659Hz) -> G5 (784Hz) -> C6 (1046Hz)
+    const sequence = [
+      { freq: 523.25, time: 0.0, dur: 0.3, vol: 0.3 },
+      { freq: 659.25, time: 0.16, dur: 0.3, vol: 0.3 },
+      { freq: 783.99, time: 0.32, dur: 0.35, vol: 0.35 },
+      { freq: 1046.50, time: 0.50, dur: 0.65, vol: 0.4 }
+    ];
+
+    sequence.forEach(n => {
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, now + idx * 0.18);
-      gain.gain.setValueAtTime(0.2, now + idx * 0.18);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.18 + 0.6);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(n.freq, now + n.time);
+      gain.gain.setValueAtTime(n.vol, now + n.time);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + n.time + n.dur);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
-      osc.start(now + idx * 0.18);
-      osc.stop(now + idx * 0.18 + 0.6);
+      osc.start(now + n.time);
+      osc.stop(now + n.time + n.dur);
     });
   } catch (err) {
-    console.warn('Audio chime warning:', err);
+    console.warn('Audio chime notice:', err);
   }
+}
+
+function requestNotificationPermission() {
+  if ('Notification' in window) {
+    if (Notification.permission === 'granted') {
+      showToast('🔔 Browser notifications are already enabled.', 'info');
+      updateNotificationBtnState(true);
+      return;
+    }
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        showToast('🔔 Desktop notifications enabled! You will receive scheduled dose alerts.', 'success');
+        updateNotificationBtnState(true);
+        showWebNotification('MedGuide AI Notifications Active', 'You will be notified when your medicines are scheduled.');
+      } else {
+        showToast('Notification permission was not granted. In-app popups and chimes will still notify you.', 'warning');
+      }
+    });
+  }
+}
+
+function updateNotificationBtnState(enabled) {
+  const btn = document.getElementById('btnRequestBrowserNotif');
+  if (btn) {
+    btn.textContent = enabled ? 'Enabled ✓' : 'Enable';
+    btn.classList.toggle('btn-success', enabled);
+    btn.classList.toggle('btn-outline', !enabled);
+  }
+}
+
+function showWebNotification(title, body) {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      const notif = new Notification(title, {
+        body: body,
+        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🩺</text></svg>',
+        badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⏰</text></svg>'
+      });
+      notif.onclick = () => {
+        window.focus();
+        notif.close();
+      };
+    } catch (e) {
+      console.warn('Web notification notice:', e);
+    }
+  }
+}
+
+let currentActiveReminderMed = null;
+
+function triggerMedicineReminder(med) {
+  if (!med) return;
+  currentActiveReminderMed = med;
+
+  // 1. Play sound chime
+  playReminderChime();
+
+  // 2. Browser Desktop Notification
+  showWebNotification(
+    `⏰ Medicine Reminder: ${med.name}`,
+    `Dose: ${med.strength} scheduled for ${formatTime12Hour(med.time)}. ${med.notes || med.dosage_instructions || ''}`
+  );
+
+  // 3. Show In-Page Reminder Alert Modal (#reminderModalBackdrop)
+  const modal = document.getElementById('reminderModalBackdrop');
+  if (modal) {
+    setElText('reminderMedName', med.name);
+    setElText('reminderMedDosage', `${med.strength} (${med.category || 'Tablet'})`);
+    setElText('reminderMedTime', formatTime12Hour(med.time));
+    setElText('reminderMedNotes', med.notes || med.dosage_instructions || 'Take as prescribed with a full glass of water.');
+    modal.style.display = 'flex';
+  }
+
+  // 4. Prominent in-app toast
+  showToast(`⏰ Medication Reminder: Time to take ${med.name} (${med.strength})!`, 'warning');
 }
 
 // =============================================================
@@ -2101,6 +2203,67 @@ function attachActionHandlers() {
 
   document.getElementById('btnPrintEmergencyCard')?.addEventListener('click', () => window.print());
   document.getElementById('btnDownloadEmergencyCard')?.addEventListener('click', () => window.print());
+
+  // Quick Test Reminder Demo in Topbar
+  document.getElementById('btnTestReminder')?.addEventListener('click', () => {
+    unlockAudio();
+    requestNotificationPermission();
+
+    const targetMed = (appState.medications && appState.medications.length > 0)
+      ? (appState.medications.find(m => m.status === 'pending') || appState.medications[0])
+      : {
+          id: 'test_med_demo',
+          name: 'Metformin Hydrochloride',
+          strength: '500 mg',
+          category: 'Tablet',
+          time: getCurrentTime24(),
+          notes: 'Take with breakfast. Drink a full glass of water.'
+        };
+
+    triggerMedicineReminder(targetMed);
+  });
+
+  // In-Page Reminder Modal Action Handlers (#reminderModalBackdrop)
+  document.getElementById('reminderBtnTaken')?.addEventListener('click', async () => {
+    if (!currentActiveReminderMed) return;
+    const med = currentActiveReminderMed;
+    document.getElementById('reminderModalBackdrop').style.display = 'none';
+    currentActiveReminderMed = null;
+    showToast(`✓ Marked ${med.name} as taken!`, 'success');
+    await ApiClient.medicationAction(med.id, 'taken');
+    await loadUserData();
+  });
+
+  document.getElementById('reminderBtnSnooze')?.addEventListener('click', () => {
+    if (!currentActiveReminderMed) return;
+    const med = currentActiveReminderMed;
+    document.getElementById('reminderModalBackdrop').style.display = 'none';
+    currentActiveReminderMed = null;
+    showToast(`⏰ Snoozed ${med.name} for 5 minutes.`, 'info');
+    setTimeout(() => {
+      triggerMedicineReminder(med);
+    }, 5 * 60 * 1000);
+  });
+
+  document.getElementById('reminderBtnSkip')?.addEventListener('click', async () => {
+    if (!currentActiveReminderMed) return;
+    const med = currentActiveReminderMed;
+    document.getElementById('reminderModalBackdrop').style.display = 'none';
+    currentActiveReminderMed = null;
+    showToast(`Marked ${med.name} as skipped.`, 'warning');
+    await ApiClient.medicationAction(med.id, 'skipped');
+    await loadUserData();
+  });
+
+  document.getElementById('reminderBtnDismiss')?.addEventListener('click', () => {
+    document.getElementById('reminderModalBackdrop').style.display = 'none';
+    currentActiveReminderMed = null;
+  });
+
+  // Settings Browser Notification Toggle
+  document.getElementById('btnRequestBrowserNotif')?.addEventListener('click', () => {
+    requestNotificationPermission();
+  });
 }
 
 function switchView(viewName) {
@@ -2439,8 +2602,7 @@ function checkScheduledReminders() {
       const reminderKey = `${med.id}_${todayStr}_${current24}`;
       if (!appState.remindedKeys.has(reminderKey)) {
         appState.remindedKeys.add(reminderKey);
-        playReminderChime();
-        showToast(`⏰ Medication Reminder: Time to take ${med.name} (${med.strength})!`, 'warning');
+        triggerMedicineReminder(med);
       }
     }
   });
