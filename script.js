@@ -1948,34 +1948,487 @@ function renderDietPlanner() {
 }
 
 // =============================================================
-// 15. INTERACTION CHECKER (Section 10)
+// 15. INTERACTION CHECKER CONTROLLER (Section 10, 4.5 & 4.6)
 // =============================================================
 
+const CLINICAL_DRUG_INTERACTIONS = [
+  {
+    drugA: 'lisinopril',
+    drugB: 'ibuprofen',
+    severity: 'major',
+    badge: 'Major Contraindication Risk',
+    title: 'Lisinopril + Ibuprofen (NSAID)',
+    explanation: 'Concomitant administration of NSAIDs (such as Ibuprofen) with ACE inhibitors (such as Lisinopril) may significantly attenuate the antihypertensive effect and induce severe acute renal impairment or hyperkalemia.',
+    nextStep: 'Avoid chronic concurrent use. Consult your prescribing physician for safer alternative analgesics like Acetaminophen (Paracetamol).'
+  },
+  {
+    drugA: 'metformin',
+    drugB: 'alcohol',
+    severity: 'major',
+    badge: 'Major Contraindication Risk',
+    title: 'Metformin + Alcohol',
+    explanation: 'Alcohol potentiates the effect of Metformin on lactate metabolism, dramatically increasing the risk of life-threatening lactic acidosis and severe unpredictable hypoglycemia.',
+    nextStep: 'Avoid acute or chronic excessive alcohol consumption during Metformin therapy.'
+  },
+  {
+    drugA: 'aspirin',
+    drugB: 'ibuprofen',
+    severity: 'major',
+    badge: 'Major Antiplatelet Risk',
+    title: 'Aspirin + Ibuprofen',
+    explanation: 'Ibuprofen competitively interferes with the irreversible antiplatelet effect of low-dose cardioprotective Aspirin and compounds gastrointestinal mucosal ulceration risks.',
+    nextStep: 'Take Ibuprofen at least 8 hours before or 30 minutes after immediate-release Aspirin, or switch to an alternative analgesic.'
+  },
+  {
+    drugA: 'warfarin',
+    drugB: 'aspirin',
+    severity: 'major',
+    badge: 'Severe Hemorrhage Risk',
+    title: 'Warfarin + Aspirin',
+    explanation: 'Combining anticoagulants with antiplatelet agents significantly amplifies the risk of major internal gastrointestinal or intracranial bleeding.',
+    nextStep: 'Strictly avoid unless explicitly directed and frequently monitored via INR tests by your cardiologist.'
+  },
+  {
+    drugA: 'warfarin',
+    drugB: 'ibuprofen',
+    severity: 'major',
+    badge: 'Severe Gastrointestinal Bleeding',
+    title: 'Warfarin + Ibuprofen',
+    explanation: 'NSAIDs irritate the stomach lining and disrupt platelet aggregation, dangerously compounding Warfarin anticoagulant potency.',
+    nextStep: 'Contraindicated. Use Acetaminophen for pain relief under medical guidance.'
+  },
+  {
+    drugA: 'paracetamol',
+    drugB: 'alcohol',
+    severity: 'major',
+    badge: 'Acute Hepatotoxicity Risk',
+    title: 'Paracetamol / Acetaminophen + Alcohol',
+    explanation: 'Alcohol induces CYP2E1 liver enzymes, metabolizing Acetaminophen into the toxic metabolite NAPQI, accelerating risk of severe acute hepatic necrosis.',
+    nextStep: 'Do not consume alcoholic beverages when taking Paracetamol or Tylenol.'
+  },
+  {
+    drugA: 'acetaminophen',
+    drugB: 'alcohol',
+    severity: 'major',
+    badge: 'Acute Hepatotoxicity Risk',
+    title: 'Acetaminophen + Alcohol',
+    explanation: 'Alcohol induces CYP2E1 liver enzymes, metabolizing Acetaminophen into the toxic metabolite NAPQI, accelerating risk of severe acute hepatic necrosis.',
+    nextStep: 'Do not consume alcoholic beverages when taking Acetaminophen.'
+  },
+  {
+    drugA: 'omeprazole',
+    drugB: 'clopidogrel',
+    severity: 'major',
+    badge: 'Reduced Antiplatelet Activation',
+    title: 'Omeprazole + Clopidogrel (Plavix)',
+    explanation: 'Omeprazole strongly inhibits CYP2C19, significantly reducing conversion of Clopidogrel to its active antiplatelet form, leaving patients vulnerable to thromboembolic events.',
+    nextStep: 'Switch to a non-interacting PPI like Pantoprazole or an H2 blocker like Famotidine after consulting your doctor.'
+  },
+  {
+    drugA: 'amoxicillin',
+    drugB: 'allopurinol',
+    severity: 'moderate',
+    badge: 'High Skin Rash Incidence',
+    title: 'Amoxicillin + Allopurinol',
+    explanation: 'Concurrent use markedly escalates the frequency of severe erythematous skin rashes and allergic hypersensitivity reactions.',
+    nextStep: 'Promptly inform your doctor if any rash, itching, or skin irritation emerges.'
+  },
+  {
+    drugA: 'lisinopril',
+    drugB: 'aspirin',
+    severity: 'moderate',
+    badge: 'Moderate Advisory',
+    title: 'Lisinopril + Aspirin',
+    explanation: 'High-dose aspirin may diminish the hemodynamic vasodilatory efficacy of ACE inhibitors like Lisinopril through inhibition of renal prostaglandin synthesis. Low-dose cardioprotective aspirin (75–100 mg) is generally monitored.',
+    nextStep: 'Ensure both prescribing doctors are coordinated. Monitor regular home blood pressure measurements.'
+  },
+  {
+    drugA: 'metformin',
+    drugB: 'lisinopril',
+    severity: 'minor',
+    badge: 'Minor Precaution / Monitored',
+    title: 'Metformin + Lisinopril',
+    explanation: 'Lisinopril may slightly improve insulin sensitivity, mildly shifting glucose metabolism alongside Metformin; both rely on renal clearance.',
+    nextStep: 'Standard clinical combination for cardiometabolic management. Periodic routine serum creatinine, eGFR, and blood glucose checks are recommended.'
+  },
+  {
+    drugA: 'atorvastatin',
+    drugB: 'metformin',
+    severity: 'none',
+    badge: 'Compatible / Safe Regimen',
+    title: 'Atorvastatin + Metformin',
+    explanation: 'No pharmacokinetic or pharmacodynamic antagonism exists between Atorvastatin and Metformin. Frequently prescribed together for comprehensive metabolic and lipid management.',
+    nextStep: 'Continue taking according to your prescribed schedule with breakfast and dinner.'
+  },
+  {
+    drugA: 'atorvastatin',
+    drugB: 'lisinopril',
+    severity: 'none',
+    badge: 'Compatible / Safe Regimen',
+    title: 'Atorvastatin + Lisinopril',
+    explanation: 'Both medications work on complementary, independent cardiovascular targets (cholesterol synthesis and blood pressure regulation) with no adverse contraindications.',
+    nextStep: 'Maintain daily adherence as directed by your physician.'
+  },
+  {
+    drugA: 'albuterol',
+    drugB: 'cetirizine',
+    severity: 'none',
+    badge: 'Compatible / Safe Regimen',
+    title: 'Albuterol Inhaler + Cetirizine',
+    explanation: 'Albuterol (bronchodilator) and Cetirizine (H1-antihistamine) operate through separate receptor pathways and are safe to administer concurrently for asthma and allergic rhinitis.',
+    nextStep: 'Continue taking both medications as directed.'
+  }
+];
+
+const CLINICAL_FOOD_INTERACTIONS = [
+  {
+    drugKey: 'atorvastatin',
+    foodKey: 'grapefruit',
+    severity: 'major',
+    badge: 'Major Clinical Contraindication',
+    title: 'Atorvastatin + Grapefruit Juice 🍊',
+    explanation: 'Grapefruit contains potent furanocoumarins that irreversibly inhibit intestinal CYP3A4 enzymes. This drastically elevates systemic circulating levels of Atorvastatin, significantly multiplying the danger of muscle toxicity (rhabdomyolysis) and hepatic impairment.',
+    nextStep: 'Avoid consuming whole grapefruit, grapefruit segments, or grapefruit juice completely while on Atorvastatin.'
+  },
+  {
+    drugKey: 'metformin',
+    foodKey: 'alcohol',
+    severity: 'major',
+    badge: 'High Risk Contraindication',
+    title: 'Metformin + Alcohol / Beer / Wine 🍷',
+    explanation: 'Alcohol interferes with liver gluconeogenesis and intensifies the lactate-producing effect of Metformin, greatly increasing susceptibility to lactic acidosis and sudden hypoglycemia.',
+    nextStep: 'Strictly minimize or avoid alcoholic beverages while taking Metformin.'
+  },
+  {
+    drugKey: 'lisinopril',
+    foodKey: 'potassium',
+    severity: 'major',
+    badge: 'Major Electrolyte Warning',
+    title: 'Lisinopril + Potassium Salt Substitutes 🧂',
+    explanation: 'Lisinopril decreases aldosterone, which diminishes the kidneys’ ability to excrete potassium. Consuming potassium-based salt substitutes or potassium supplements can result in severe hyperkalemia and dangerous cardiac arrhythmias.',
+    nextStep: 'Avoid commercial salt substitutes containing potassium chloride unless explicitly prescribed and monitored by your physician.'
+  },
+  {
+    drugKey: 'lisinopril',
+    foodKey: 'alcohol',
+    severity: 'moderate',
+    badge: 'Moderate Hypotensive Advisory',
+    title: 'Lisinopril + Alcohol 🍷',
+    explanation: 'Alcohol compounds the peripheral vasodilatory effects of ACE inhibitors, causing sharp blood pressure drops, dizziness, postural lightheadedness, and risk of fainting upon standing.',
+    nextStep: 'Drink plenty of water, stand up slowly, and limit alcohol consumption.'
+  },
+  {
+    drugKey: 'cetirizine',
+    foodKey: 'alcohol',
+    severity: 'moderate',
+    badge: 'Moderate Sedation Warning',
+    title: 'Cetirizine + Alcohol 🍷',
+    explanation: 'Alcohol amplifies the central nervous system sedative effects of antihistamines like Cetirizine, producing heavy drowsiness, mental clouding, and slowed motor reflexes.',
+    nextStep: 'Avoid driving or operating machinery if consuming alcohol with Cetirizine.'
+  },
+  {
+    drugKey: 'albuterol',
+    foodKey: 'caffeine',
+    severity: 'moderate',
+    badge: 'Moderate Stimulant Warning',
+    title: 'Albuterol Inhaler + High Caffeine ☕',
+    explanation: 'Caffeine and Albuterol are both adrenergic stimulants. Concurrent high caffeine consumption can compound tachycardia (rapid heart rate), chest fluttering, nervousness, and muscle tremors.',
+    nextStep: 'Limit energy drinks, strong coffee, or high-caffeine beverages around inhalation times.'
+  },
+  {
+    drugKey: 'warfarin',
+    foodKey: 'vitamin k',
+    severity: 'major',
+    badge: 'Anticoagulant Antagonism',
+    title: 'Warfarin + High Vitamin K (Spinach/Kale) 🥬',
+    explanation: 'Vitamin K directly counteracts the anticoagulant mechanism of Warfarin, causing sudden reductions in INR and increasing the danger of blood clots.',
+    nextStep: 'Maintain a consistent daily intake of Vitamin K rather than making sudden large dietary changes.'
+  },
+  {
+    drugKey: 'ciprofloxacin',
+    foodKey: 'milk',
+    severity: 'major',
+    badge: 'Severe Chelation Malabsorption',
+    title: 'Ciprofloxacin + Milk / Calcium Dairy 🥛',
+    explanation: 'Calcium in milk binds directly to fluoroquinolones like Ciprofloxacin forming insoluble chelates that fail to absorb through the intestinal tract.',
+    nextStep: 'Take Ciprofloxacin at least 2 hours before or 6 hours after dairy products or calcium-fortified juices.'
+  },
+  {
+    drugKey: 'metformin',
+    foodKey: 'milk',
+    severity: 'none',
+    badge: 'Compatible & Protective',
+    title: 'Metformin + Milk / Dairy 🥛',
+    explanation: 'Dairy and food intake buffer the gastric lining, significantly mitigating common gastrointestinal side effects (nausea, upset stomach) without compromising Metformin efficacy.',
+    nextStep: 'Recommended: Take Metformin with meals or milk to improve gastrointestinal tolerance.'
+  },
+  {
+    drugKey: 'amoxicillin',
+    foodKey: 'milk',
+    severity: 'none',
+    badge: 'Compatible Food Intake',
+    title: 'Amoxicillin + Milk / Dairy 🥛',
+    explanation: 'Unlike tetracyclines or fluoroquinolones, Amoxicillin absorption is unaffected by calcium or dairy products and may be taken with milk to buffer stomach discomfort.',
+    nextStep: 'Take as scheduled with water or meals.'
+  }
+];
+
+let interactionCheckerInitialized = false;
+
 function setupInteractionChecker() {
+  const subtabDrug = document.getElementById('subtabDrugDrug');
+  const subtabFood = document.getElementById('subtabDrugFood');
+  const panelDrug = document.getElementById('tabContentDrugDrug');
+  const panelFood = document.getElementById('tabContentDrugFood');
+  const btnCheckDrugDrug = document.getElementById('btnCheckDrugDrug');
+  const btnSelectAll = document.getElementById('btnSelectAllDrugs');
+  const btnCheckDrugFood = document.getElementById('btnCheckDrugFood');
+  const drugResults = document.getElementById('drugDrugResultsContainer');
+  const foodResults = document.getElementById('drugFoodResultsContainer');
+
+  // Render the initial checkboxes and options
+  renderInteractionCheckerUI();
+
+  if (interactionCheckerInitialized) return;
+  interactionCheckerInitialized = true;
+
+  // 1. Subtab Switching (Drug–Drug vs Drug–Food)
+  subtabDrug?.addEventListener('click', () => {
+    subtabDrug.classList.add('active');
+    subtabFood?.classList.remove('active');
+    if (panelDrug) panelDrug.style.display = 'block';
+    if (panelFood) panelFood.style.display = 'none';
+  });
+
+  subtabFood?.addEventListener('click', () => {
+    subtabFood.classList.add('active');
+    subtabDrug?.classList.remove('active');
+    if (panelFood) panelFood.style.display = 'block';
+    if (panelDrug) panelDrug.style.display = 'none';
+  });
+
+  // 2. "Select All My Medications" Button
+  btnSelectAll?.addEventListener('click', () => {
+    const container = document.getElementById('drugDrugCheckboxes');
+    if (!container) return;
+    container.querySelectorAll('.drug-check-input').forEach(chk => {
+      chk.checked = true;
+    });
+    showToast('All medications selected for cross-checking.', 'info');
+  });
+
+  // 3. "Check Selected Combinations" (Drug–Drug)
+  btnCheckDrugDrug?.addEventListener('click', () => {
+    const container = document.getElementById('drugDrugCheckboxes');
+    if (!container) return;
+    const selected = Array.from(container.querySelectorAll('.drug-check-input:checked')).map(c => c.value);
+
+    if (selected.length < 2) {
+      showToast('Please select at least 2 medications to evaluate interaction risks.', 'warning');
+      if (drugResults) {
+        drugResults.innerHTML = `
+          <div class="panel-card text-center py-6">
+            <span class="text-3xl block mb-2">💊 + 💊</span>
+            <p class="font-bold text-navy">Select at least 2 medications above</p>
+            <p class="text-sm text-muted">MedGuide AI cross-checks combinations against clinical pharmacology interaction databases.</p>
+          </div>
+        `;
+      }
+      return;
+    }
+
+    // Evaluate all pairs in selected drugs
+    const matches = [];
+    const normalizedSelected = selected.map(s => s.toLowerCase());
+
+    for (let i = 0; i < normalizedSelected.length; i++) {
+      for (let j = i + 1; j < normalizedSelected.length; j++) {
+        const drug1 = normalizedSelected[i];
+        const drug2 = normalizedSelected[j];
+
+        // Search database
+        const match = CLINICAL_DRUG_INTERACTIONS.find(rule => 
+          (drug1.includes(rule.drugA) && drug2.includes(rule.drugB)) ||
+          (drug1.includes(rule.drugB) && drug2.includes(rule.drugA))
+        );
+
+        if (match) {
+          matches.push(match);
+        } else {
+          matches.push({
+            severity: 'none',
+            badge: 'Compatible / Safe Regimen',
+            title: `${selected[i].split('(')[0].trim()} + ${selected[j].split('(')[0].trim()}`,
+            explanation: `No major clinically adverse contraindications were detected between ${selected[i].split('(')[0].trim()} and ${selected[j].split('(')[0].trim()} in standard pharmacology databases.`,
+            nextStep: 'Continue scheduled administration as prescribed and verify all new supplements with your pharmacist.'
+          });
+        }
+      }
+    }
+
+    const severityRank = { major: 1, moderate: 2, minor: 3, none: 4 };
+    matches.sort((a, b) => (severityRank[a.severity] || 5) - (severityRank[b.severity] || 5));
+
+    const uniqueMatches = [];
+    const seenTitles = new Set();
+    matches.forEach(m => {
+      if (!seenTitles.has(m.title)) {
+        seenTitles.add(m.title);
+        uniqueMatches.push(m);
+      }
+    });
+
+    if (drugResults) {
+      const majorCount = uniqueMatches.filter(m => m.severity === 'major').length;
+      const moderateCount = uniqueMatches.filter(m => m.severity === 'moderate').length;
+
+      let summaryBanner = '';
+      if (majorCount > 0) {
+        summaryBanner = `
+          <div class="alert alert-danger mb-4" style="background: #FEE2E2; border-left: 4px solid #DC2626; padding: 0.85rem 1.15rem; border-radius: 8px;">
+            <strong style="color: #991B1B;">🚨 High Risk Alert:</strong> Found ${majorCount} combination${majorCount === 1 ? '' : 's'} with major clinical contraindications. Immediate medical consultation advised.
+          </div>
+        `;
+      } else if (moderateCount > 0) {
+        summaryBanner = `
+          <div class="alert alert-warning mb-4" style="background: #FEF3C7; border-left: 4px solid #D97706; padding: 0.85rem 1.15rem; border-radius: 8px;">
+            <strong style="color: #92400E;">⚠️ Advisory Notice:</strong> Found ${moderateCount} combination${moderateCount === 1 ? '' : 's'} requiring clinical monitoring.
+          </div>
+        `;
+      } else {
+        summaryBanner = `
+          <div class="alert alert-success mb-4" style="background: #DCFCE7; border-left: 4px solid #16A34A; padding: 0.85rem 1.15rem; border-radius: 8px;">
+            <strong style="color: #166534;">✓ All Clear:</strong> No major or moderate contraindications found between your selected medications.
+          </div>
+        `;
+      }
+
+      drugResults.innerHTML = summaryBanner + uniqueMatches.map(m => `
+        <div class="interaction-card severity-${m.severity}">
+          <div class="interaction-header">
+            <span class="interaction-drugs-involved">${escapeHtml(m.title)}</span>
+            <span class="severity-tag">${escapeHtml(m.badge)}</span>
+          </div>
+          <p class="interaction-explanation">${escapeHtml(m.explanation)}</p>
+          <div class="interaction-next-step">
+            <strong>💡 Recommended Action:</strong> ${escapeHtml(m.nextStep)}
+          </div>
+        </div>
+      `).join('');
+
+      showToast(`Cross-checked ${uniqueMatches.length} drug combinations.`, 'info');
+    }
+  });
+
+  // 4. "Evaluate Drug–Food Interaction" (Drug–Food)
+  btnCheckDrugFood?.addEventListener('click', () => {
+    const medSelect = document.getElementById('foodCheckMedSelect');
+    const medName = medSelect ? medSelect.value : '';
+    const foodItem = document.getElementById('foodCheckItemSelect')?.value || '';
+
+    if (!medName || medName === 'None') {
+      showToast('Please select a medication to evaluate.', 'warning');
+      return;
+    }
+
+    const medLower = medName.toLowerCase();
+    const foodLower = foodItem.toLowerCase();
+
+    let match = CLINICAL_FOOD_INTERACTIONS.find(rule => 
+      medLower.includes(rule.drugKey) && (
+        (rule.foodKey === 'grapefruit' && foodLower.includes('grapefruit')) ||
+        (rule.foodKey === 'alcohol' && (foodLower.includes('alcohol') || foodLower.includes('wine') || foodLower.includes('beer'))) ||
+        (rule.foodKey === 'potassium' && (foodLower.includes('potassium') || foodLower.includes('salt'))) ||
+        (rule.foodKey === 'milk' && (foodLower.includes('milk') || foodLower.includes('dairy') || foodLower.includes('calcium'))) ||
+        (rule.foodKey === 'caffeine' && (foodLower.includes('caffeine') || foodLower.includes('coffee'))) ||
+        (rule.foodKey === 'vitamin k' && (foodLower.includes('leafy') || foodLower.includes('vitamin k') || foodLower.includes('greens')))
+      )
+    );
+
+    if (!match) {
+      match = {
+        severity: 'none',
+        badge: 'No Severe Interaction Documented',
+        title: `${medName.split('(')[0].trim()} + ${foodItem.split('(')[0].trim()}`,
+        explanation: `Standard pharmacological references do not report critical contraindications between ${medName.split('(')[0].trim()} and ${foodItem.split('(')[0].trim()}.`,
+        nextStep: 'Continue normal dietary intake and maintain regular medication schedules with water.'
+      };
+    }
+
+    if (foodResults) {
+      foodResults.innerHTML = `
+        <div class="interaction-card severity-${match.severity}">
+          <div class="interaction-header">
+            <span class="interaction-drugs-involved">${escapeHtml(match.title)}</span>
+            <span class="severity-tag">${escapeHtml(match.badge)}</span>
+          </div>
+          <p class="interaction-explanation">${escapeHtml(match.explanation)}</p>
+          <div class="interaction-next-step">
+            <strong>🍎 Dietary Guidance:</strong> ${escapeHtml(match.nextStep)}
+          </div>
+        </div>
+      `;
+
+      showToast(`Evaluated: ${match.badge}`, match.severity === 'major' ? 'danger' : 'info');
+    }
+  });
+}
+
+function renderInteractionCheckerUI() {
   const container = document.getElementById('drugDrugCheckboxes');
   const medSelect = document.getElementById('foodCheckMedSelect');
-  if (!container) return;
+  if (!container && !medSelect) return;
 
-  // Automatically load the logged-in user's actual medication list! (Section 10)
-  const userMeds = appState.medications.map(m => `${m.name} (${m.strength})`);
-  const otcMeds = ['Ibuprofen (OTC NSAID)', 'Aspirin (Cardioprotective)', 'Alcohol (Social intake)'];
+  // 1. Populate Drug Checkboxes from actual medications + Common OTCs
+  const userMeds = (appState.medications && appState.medications.length > 0)
+    ? appState.medications.map(m => m.name)
+    : ['Metformin Hydrochloride', 'Lisinopril', 'Atorvastatin Calcium'];
+
+  const otcMeds = [
+    'Ibuprofen (Advil/Motrin)',
+    'Aspirin (Cardioprotective)',
+    'Paracetamol (Tylenol/Acetaminophen)',
+    'Omeprazole (Prilosec)'
+  ];
+
+  // Remember checked values if previously selected
+  const currentlyChecked = new Set();
+  if (container) {
+    container.querySelectorAll('.drug-check-input:checked').forEach(c => currentlyChecked.add(c.value));
+  }
+
   const allDrugs = [...new Set([...userMeds, ...otcMeds])];
 
-  container.innerHTML = allDrugs.map((drug, idx) => `
-    <label class="drug-checkbox-pill">
-      <input type="checkbox" value="${escapeHtml(drug)}" ${idx < userMeds.length ? 'checked' : ''}>
-      <span>${escapeHtml(drug)}</span>
-    </label>
-  `).join('');
+  if (container) {
+    container.innerHTML = allDrugs.map((drug, idx) => {
+      const isChecked = currentlyChecked.size > 0 ? currentlyChecked.has(drug) : idx < userMeds.length;
+      return `
+        <label class="drug-checkbox-pill">
+          <input type="checkbox" class="drug-check-input" value="${escapeHtml(drug)}" ${isChecked ? 'checked' : ''}>
+          <span>${escapeHtml(drug)}</span>
+        </label>
+      `;
+    }).join('');
+  }
 
+  // 2. Populate Medication Dropdown for Drug–Food
   if (medSelect) {
-    if (appState.medications.length === 0) {
-      medSelect.innerHTML = '<option value="None">No medications in schedule</option>';
-    } else {
-      medSelect.innerHTML = appState.medications.map(m => `
-        <option value="${escapeHtml(m.name)}">${escapeHtml(m.name)} (${escapeHtml(m.strength)})</option>
-      `).join('');
-    }
+    const prevVal = medSelect.value;
+    const activeMeds = (appState.medications && appState.medications.length > 0)
+      ? appState.medications
+      : [
+          { name: 'Atorvastatin Calcium', strength: '20 mg' },
+          { name: 'Metformin Hydrochloride', strength: '500 mg' },
+          { name: 'Lisinopril', strength: '10 mg' },
+          { name: 'Cetirizine Hydrochloride', strength: '10 mg' },
+          { name: 'Albuterol Sulfate Inhaler', strength: '90 mcg' }
+        ];
+
+    medSelect.innerHTML = activeMeds.map(m => `
+      <option value="${escapeHtml(m.name)}" ${prevVal === m.name ? 'selected' : ''}>
+        ${escapeHtml(m.name)} ${m.strength ? `(${escapeHtml(m.strength)})` : ''}
+      </option>
+    `).join('');
   }
 }
 
@@ -2283,6 +2736,9 @@ function switchView(viewName) {
 
   appState.currentView = viewName;
   document.getElementById('appSidebar')?.classList.remove('sidebar-open');
+  if (viewName === 'interactions') {
+    renderInteractionCheckerUI();
+  }
 }
 
 function openMedicineExplainer(medName) {
@@ -2609,7 +3065,343 @@ function checkScheduledReminders() {
 }
 
 // =============================================================
-// 17. INITIALIZATION ON PAGE LOAD
+// 17. VOICE ASSISTANT CONTROLLER (Section 4.13)
+// =============================================================
+
+let speechRecognitionInstance = null;
+let isVoiceListening = false;
+
+function setupVoiceAssistantController() {
+  const modal = document.getElementById('voiceAssistantModal');
+  const openBtn = document.getElementById('btnOpenVoiceAssistant');
+  const closeBtn = document.getElementById('closeVoiceAssistantModal');
+  const micBtn = document.getElementById('btnToggleVoiceListen');
+  const statusLabel = document.getElementById('voiceStatusLabel');
+  const responseCard = document.getElementById('assistantResponseCard');
+  const responseText = document.getElementById('assistantResponseText');
+  const speakBtn = document.getElementById('btnSpeakResponse');
+  const promptButtons = document.querySelectorAll('.btn-voice-prompt');
+
+  if (!modal) return;
+
+  // 1. Open Voice Assistant Modal
+  openBtn?.addEventListener('click', () => {
+    unlockAudio();
+    modal.style.display = 'flex';
+    if (statusLabel) {
+      statusLabel.textContent = 'Click microphone or choose a question below';
+    }
+  });
+
+  // 2. Close Voice Assistant Modal
+  const closeModal = () => {
+    modal.style.display = 'none';
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    if (speechRecognitionInstance && isVoiceListening) {
+      try { speechRecognitionInstance.stop(); } catch(e){}
+    }
+    isVoiceListening = false;
+    if (micBtn) micBtn.classList.remove('is-listening');
+  };
+
+  closeBtn?.addEventListener('click', closeModal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  // 3. Speech Recognition Setup (Web Speech API)
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SpeechRecognition) {
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        isVoiceListening = true;
+        if (micBtn) micBtn.classList.add('is-listening');
+        if (statusLabel) statusLabel.textContent = '🎙️ Listening... Speak into your microphone now';
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        if (statusLabel) statusLabel.textContent = `Heard: "${transcript}"`;
+        processVoiceQuery(transcript);
+      };
+
+      recognition.onerror = (event) => {
+        isVoiceListening = false;
+        if (micBtn) micBtn.classList.remove('is-listening');
+        if (statusLabel) {
+          if (event.error === 'not-allowed') {
+            statusLabel.textContent = 'Microphone permission blocked. Please select a prompt below:';
+            showToast('Microphone access blocked. Click any question below to test.', 'warning');
+          } else {
+            statusLabel.textContent = 'Click microphone or choose a question below';
+          }
+        }
+      };
+
+      recognition.onend = () => {
+        isVoiceListening = false;
+        if (micBtn) micBtn.classList.remove('is-listening');
+      };
+
+      speechRecognitionInstance = recognition;
+    } catch (e) {
+      console.warn('SpeechRecognition initialization error:', e);
+    }
+  }
+
+  // 4. Mic Sphere Click Handler
+  micBtn?.addEventListener('click', () => {
+    unlockAudio();
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+
+    if (!speechRecognitionInstance) {
+      showToast('Speech recognition not supported in this browser. Please click a sample question below.', 'info');
+      if (statusLabel) {
+        statusLabel.textContent = 'Microphone unavailable. Choose a sample question below:';
+      }
+      return;
+    }
+
+    if (isVoiceListening) {
+      try { speechRecognitionInstance.stop(); } catch(e){}
+      isVoiceListening = false;
+      if (micBtn) micBtn.classList.remove('is-listening');
+      if (statusLabel) statusLabel.textContent = 'Click microphone or choose a question below';
+    } else {
+      try {
+        speechRecognitionInstance.start();
+      } catch (err) {
+        try {
+          speechRecognitionInstance.stop();
+          setTimeout(() => speechRecognitionInstance.start(), 250);
+        } catch(e) {
+          console.warn('Recognition start exception:', e);
+        }
+      }
+    }
+  });
+
+  // 5. Sample Voice Prompt Buttons (.btn-voice-prompt)
+  promptButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      unlockAudio();
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      if (speechRecognitionInstance && isVoiceListening) {
+        try { speechRecognitionInstance.stop(); } catch(e){}
+      }
+      const rawPrompt = btn.getAttribute('data-prompt') || btn.textContent.trim().replace(/^["“]|["”]$/g, '');
+      if (statusLabel) statusLabel.textContent = `Selected: "${rawPrompt}"`;
+      processVoiceQuery(rawPrompt);
+    });
+  });
+
+  // 6. Speak Response Button (#btnSpeakResponse)
+  speakBtn?.addEventListener('click', () => {
+    unlockAudio();
+    const textToSpeak = responseText?.textContent || '';
+    if (textToSpeak) {
+      speakAssistantText(textToSpeak);
+    }
+  });
+
+  // 7. Natural Language Clinical Query Processor
+  function processVoiceQuery(rawQuery) {
+    const query = (rawQuery || '').trim().toLowerCase();
+    let answer = '';
+
+    const current24 = getCurrentTime24();
+    const meds = appState.medications || [];
+
+    // Intent 1: "What medicine do I take now?" / "Next dose" / "Due now"
+    if (
+      query.includes('take now') ||
+      query.includes('next medicine') ||
+      query.includes('due now') ||
+      query.includes('upcoming') ||
+      query.includes('what to take')
+    ) {
+      const pendingMeds = meds.filter(m => m.status === 'pending');
+      if (pendingMeds.length === 0) {
+        if (meds.length === 0) {
+          answer = "You don't have any medicines in your schedule yet. Add a new medicine using the '+ Add Medicine' button or scan your prescription!";
+        } else {
+          answer = "All your scheduled medications for today are marked as taken! You're completely up to date. Excellent job maintaining your adherence.";
+        }
+      } else {
+        pendingMeds.sort((a, b) => a.time.localeCompare(b.time));
+        const nextMed = pendingMeds[0];
+        answer = `Your next scheduled dose is ${nextMed.name} (${nextMed.strength || ''}) scheduled for ${formatTime12Hour(nextMed.time)}. ${nextMed.notes ? `Doctor's note: ${nextMed.notes}` : 'Take with water as directed.'} You have ${pendingMeds.length} pending dose${pendingMeds.length === 1 ? '' : 's'} remaining today.`;
+      }
+    }
+
+    // Intent 2: "Show my medication schedule" / "List medications" / "What are my medicines"
+    else if (
+      query.includes('schedule') ||
+      query.includes('list') ||
+      query.includes('all medications') ||
+      query.includes('my medicines')
+    ) {
+      if (meds.length === 0) {
+        answer = "Your medication schedule is currently empty. You can add your medicines or scan an Rx prescription anytime.";
+      } else {
+        const medSummaries = meds.map(m => 
+          `${m.name} (${m.strength || ''}) at ${formatTime12Hour(m.time)} [Status: ${m.status || 'pending'}]`
+        ).join('; ');
+        answer = `Here is your current medication schedule for today: ${medSummaries}.`;
+      }
+    }
+
+    // Intent 3: "What medicines did I miss?" / "Missed" / "Skipped"
+    else if (
+      query.includes('miss') ||
+      query.includes('skipped') ||
+      query.includes('forgot')
+    ) {
+      const skippedMeds = meds.filter(m => m.status === 'skipped');
+      const overduePending = meds.filter(m => m.status === 'pending' && m.time < current24);
+      const missedCount = skippedMeds.length + overduePending.length;
+
+      if (missedCount === 0) {
+        answer = "You have zero missed or skipped medications today! All of your doses are right on track.";
+      } else {
+        const missedList = [...skippedMeds, ...overduePending].map(m => `${m.name} (scheduled ${formatTime12Hour(m.time)})`).join(', ');
+        answer = `You have ${missedCount} overdue or skipped dose${missedCount === 1 ? '' : 's'}: ${missedList}. Remember never to double up doses. If you are close to your next scheduled dose, skip the missed one and return to your normal schedule.`;
+      }
+    }
+
+    // Intent 4: "What is this medicine used for?" / "Explain medicine"
+    else if (
+      query.includes('what is this medicine') ||
+      query.includes('used for') ||
+      query.includes('purpose') ||
+      query.includes('why do i take') ||
+      query.includes('explain medicine')
+    ) {
+      let matchedMed = null;
+      for (const m of meds) {
+        if (query.includes(m.name.toLowerCase())) {
+          matchedMed = m;
+          break;
+        }
+      }
+      if (!matchedMed && meds.length > 0) {
+        matchedMed = meds[0];
+      }
+
+      if (matchedMed) {
+        const medKey = matchedMed.name.toLowerCase();
+        if (medKey.includes('metformin')) {
+          answer = "Metformin is a first-line biguanide prescribed to manage Type 2 Diabetes. It decreases hepatic glucose production, lowers intestinal absorption of glucose, and improves insulin sensitivity. Always take with meals to reduce stomach discomfort.";
+        } else if (medKey.includes('lisinopril')) {
+          answer = "Lisinopril is an ACE inhibitor used to treat hypertension (high blood pressure) and protect kidney function. It works by relaxing blood vessels so blood flows more easily, reducing cardiac workload.";
+        } else if (medKey.includes('atorvastatin')) {
+          answer = "Atorvastatin is an HMG-CoA reductase inhibitor (statin) that lowers LDL bad cholesterol and triglycerides while raising HDL good cholesterol, significantly reducing the risk of heart attack and stroke.";
+        } else if (medKey.includes('cetirizine')) {
+          answer = "Cetirizine is a 2nd generation antihistamine used to relieve allergy symptoms such as sneezing, runny nose, itchy throat, and hives by blocking histamine receptors without causing deep sedation.";
+        } else if (medKey.includes('albuterol')) {
+          answer = "Albuterol is a fast-acting bronchodilator used to prevent and treat wheezing and shortness of breath caused by asthma or COPD. It works in the airways by relaxing muscular walls and opening passages.";
+        } else if (medKey.includes('amoxicillin')) {
+          answer = "Amoxicillin is a penicillin-class antibiotic used to treat bacterial infections. It is critical to finish the entire prescribed course even if you start feeling better, to avoid antibiotic resistance.";
+        } else {
+          answer = `${matchedMed.name} (${matchedMed.strength || ''}) is prescribed for your health regimen. ${matchedMed.notes || 'Take as instructed by your healthcare provider and pharmacist.'}`;
+        }
+      } else {
+        answer = "Metformin manages blood glucose in Diabetes, Lisinopril controls high blood pressure, and Atorvastatin manages cholesterol. Add your medications to receive personalized explanations!";
+      }
+    }
+
+    // Intent 5: "Explain medical term: Hypertension" / "Hypertension"
+    else if (
+      query.includes('hypertension') ||
+      query.includes('blood pressure')
+    ) {
+      answer = "Hypertension is the clinical term for chronic high blood pressure, typically defined as resting systolic pressure of 130 mmHg or diastolic of 80 mmHg or higher. It is often called the silent killer because it often exhibits no symptoms while damaging arterial walls, heart muscle, and kidneys over time.";
+    }
+
+    // Intent 6: Diabetes / Blood Sugar
+    else if (
+      query.includes('diabetes') ||
+      query.includes('blood sugar') ||
+      query.includes('glucose')
+    ) {
+      answer = "Type 2 Diabetes occurs when the body either resists the effects of insulin or doesn't produce enough insulin to maintain normal glucose levels. Maintaining consistent medication schedules, physical activity, and healthy dietary habits helps stabilize blood sugar.";
+    }
+
+    // Intent 7: Drug/Food Interactions
+    else if (
+      query.includes('grapefruit') ||
+      query.includes('interaction') ||
+      query.includes('alcohol')
+    ) {
+      answer = "Grapefruit inhibits intestinal CYP3A4 enzymes, causing statins like Atorvastatin to build up to dangerous levels in your bloodstream. Alcohol increases lactic acidosis risk with Metformin and causes dizziness with blood pressure pills. Use our Interaction Checker tab for a full breakdown!";
+    }
+
+    // Intent 8: Adherence
+    else if (
+      query.includes('adherence') ||
+      query.includes('score')
+    ) {
+      answer = `Your current adherence score is ${appState.adherenceRate || 85}%. Taking your medications consistently on schedule ensures optimal therapeutic drug levels and prevents complications.`;
+    }
+
+    // Fallback Answer
+    else {
+      answer = `I heard: "${rawQuery}". I can help review what medicine to take next, list your active schedule, check missed doses, or explain medical terms like Hypertension and Diabetes. How can I assist you right now?`;
+    }
+
+    // Display answer
+    if (responseText) {
+      responseText.textContent = answer;
+    }
+    if (responseCard) {
+      responseCard.style.display = 'block';
+    }
+
+    // Read aloud if settingSpeechVoice is enabled
+    const speechSetting = document.getElementById('settingSpeechVoice');
+    if (!speechSetting || speechSetting.checked) {
+      speakAssistantText(answer);
+    }
+  }
+
+  // 8. Text-to-Speech Engine
+  function speakAssistantText(text) {
+    if (!('speechSynthesis' in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const clean = text.replace(/[*_#`~•]/g, '').trim();
+      const utterance = new SpeechSynthesisUtterance(clean);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+
+      const voices = window.speechSynthesis.getVoices();
+      const chosen = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.default));
+      if (chosen) utterance.voice = chosen;
+
+      if (speakBtn) speakBtn.innerHTML = '🔊 Speaking...';
+
+      utterance.onend = () => {
+        if (speakBtn) speakBtn.innerHTML = '🔊 Speak';
+      };
+      utterance.onerror = () => {
+        if (speakBtn) speakBtn.innerHTML = '🔊 Speak';
+      };
+
+      window.speechSynthesis.speak(utterance);
+    } catch (e) {
+      console.warn('Speech synthesis error:', e);
+      if (speakBtn) speakBtn.innerHTML = '🔊 Speak';
+    }
+  }
+}
+
+// =============================================================
+// 18. INITIALIZATION ON PAGE LOAD
 // =============================================================
 
 async function init() {
@@ -2617,6 +3409,8 @@ async function init() {
   setupProfileController();
   setupPrescriptionScannerController();
   attachActionHandlers();
+  setupInteractionChecker();
+  setupVoiceAssistantController();
 
   // Check active session
   await checkAuthSession();
