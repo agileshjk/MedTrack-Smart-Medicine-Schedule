@@ -198,7 +198,7 @@ const BrowserMultiUserStore = {
       const user = store.users.find(u => u.id === userId);
       if (!user) return { error: 'Unauthorized', status: 401 };
       const profile = store.profiles[userId] || { name: 'User' };
-      return { user: { id: user.id, email: user.email, name: profile.name } };
+      return { authenticated: true, user: { id: user.id, email: user.email, name: profile.name }, profile };
     }
 
     if (path === '/api/auth/logout') {
@@ -623,7 +623,10 @@ const ApiClient = {
   },
 
   async getMedications() {
-    return this.request('/api/medications', 'GET');
+    const res = await this.request('/api/medications', 'GET');
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.medications)) return res.medications;
+    return [];
   },
 
   async addMedication(medData) {
@@ -647,7 +650,10 @@ const ApiClient = {
   },
 
   async getSymptoms() {
-    return this.request('/api/symptoms', 'GET');
+    const res = await this.request('/api/symptoms', 'GET');
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.symptoms)) return res.symptoms;
+    return [];
   },
 
   async addSymptom(symptomData) {
@@ -663,7 +669,10 @@ const ApiClient = {
   },
 
   async getPrescriptions() {
-    return this.request('/api/prescriptions', 'GET');
+    const res = await this.request('/api/prescriptions', 'GET');
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.prescriptions)) return res.prescriptions;
+    return [];
   },
 
   async addPrescription(rxData) {
@@ -786,14 +795,26 @@ function playReminderChime() {
 // =============================================================
 
 async function checkAuthSession() {
-  const token = ApiClient.getToken();
+  let token = ApiClient.getToken();
+  const explicitLogout = localStorage.getItem('medguide_explicit_logout');
+
+  // If first-time visitor on cloud deployment and hasn't explicitly logged out:
+  // Auto-sign in to Alex Johnson demo account so the dashboard comes alive immediately!
+  if (!token && !explicitLogout) {
+    const demoRes = await ApiClient.demoLogin('alex');
+    if (demoRes && demoRes.token) {
+      token = demoRes.token;
+      ApiClient.setToken(token);
+    }
+  }
+
   if (!token) {
     showAuthPortal();
     return false;
   }
 
   const res = await ApiClient.getMe();
-  if (res.authenticated && res.user) {
+  if ((res.authenticated || res.user) && res.user) {
     appState.authenticated = true;
     appState.user = res.user;
     appState.profile = res.profile || {};
@@ -822,6 +843,7 @@ function hideAuthPortal() {
 }
 
 async function handleLoginSuccess(token, user) {
+  localStorage.removeItem('medguide_explicit_logout');
   ApiClient.setToken(token);
   appState.authenticated = true;
   appState.user = user;
@@ -831,6 +853,7 @@ async function handleLoginSuccess(token, user) {
 }
 
 function handleLogoutUI() {
+  localStorage.setItem('medguide_explicit_logout', 'true');
   ApiClient.clearToken();
   appState.authenticated = false;
   appState.user = null;
@@ -1014,10 +1037,8 @@ async function loadUserData() {
   }
 
   // 2. Fetch Medications
-  const meds = await ApiClient.getMedications();
-  if (Array.isArray(meds)) {
-    appState.medications = meds;
-  }
+  const medsRes = await ApiClient.getMedications();
+  appState.medications = Array.isArray(medsRes) ? medsRes : (medsRes?.medications || []);
 
   // 3. Fetch Adherence Records
   const adh = await ApiClient.getAdherence();
@@ -1026,10 +1047,12 @@ async function loadUserData() {
   }
 
   // 4. Fetch Symptoms
-  const syms = await ApiClient.getSymptoms();
-  if (Array.isArray(syms)) {
-    appState.symptoms = syms;
-  }
+  const symsRes = await ApiClient.getSymptoms();
+  appState.symptoms = Array.isArray(symsRes) ? symsRes : (symsRes?.symptoms || []);
+
+  // 4b. Fetch Prescriptions
+  const rxRes = await ApiClient.getPrescriptions();
+  appState.prescriptions = Array.isArray(rxRes) ? rxRes : (rxRes?.prescriptions || []);
 
   // 5. Fetch Diet Preferences
   const diet = await ApiClient.getDiet();
@@ -2173,12 +2196,264 @@ function escapeHtml(str) {
 }
 
 // =============================================================
+// 16. AI PRESCRIPTION SCANNER CONTROLLER (Section 4.3)
+// =============================================================
+
+function setupPrescriptionScannerController() {
+  const dropzone = document.getElementById('prescriptionDropzone');
+  const fileInput = document.getElementById('rxFileInput');
+  const browseBtn = document.getElementById('btnBrowseRxFile');
+  const overlay = document.getElementById('scanningOverlay');
+  const sample1 = document.getElementById('btnSampleRx1');
+  const sample2 = document.getElementById('btnSampleRx2');
+  const verifyChk = document.getElementById('ocrVerifyCheckbox');
+  const saveBtn = document.getElementById('btnSaveVerifiedRx');
+  const form = document.getElementById('rxVerificationForm');
+
+  if (!dropzone || !fileInput) return;
+
+  // 1. File browsing trigger
+  browseBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    fileInput.click();
+  });
+
+  dropzone.addEventListener('click', (e) => {
+    if (e.target !== browseBtn && !e.target.closest('#btnBrowseRxFile')) {
+      fileInput.click();
+    }
+  });
+
+  // 2. Drag & Drop handling
+  ['dragenter', 'dragover'].forEach(evt => {
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.add('drag-active');
+    });
+  });
+
+  ['dragleave', 'drop'].forEach(evt => {
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.remove('drag-active');
+    });
+  });
+
+  dropzone.addEventListener('drop', (e) => {
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
+      processPrescriptionFile(files[0]);
+    }
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files && fileInput.files.length > 0) {
+      processPrescriptionFile(fileInput.files[0]);
+    }
+  });
+
+  function processPrescriptionFile(file) {
+    if (overlay) overlay.style.display = 'flex';
+    playReminderChime();
+
+    setTimeout(() => {
+      if (overlay) overlay.style.display = 'none';
+
+      const fileName = (file ? file.name : '').toLowerCase();
+      let name = 'Amoxicillin & Clavulanate Potassium';
+      let strength = '625 mg';
+      let freq = 'Twice Daily';
+      let time = '09:00';
+      let qty = 20;
+      let notes = 'Take with meals. Complete 10-day prescribed regimen.';
+
+      if (fileName.includes('metformin') || fileName.includes('sugar') || fileName.includes('diabet')) {
+        name = 'Metformin Hydrochloride';
+        strength = '500 mg';
+        freq = 'Daily';
+        time = '08:00';
+        qty = 30;
+        notes = 'Take 1 tablet daily with breakfast.';
+      } else if (fileName.includes('lisinopril') || fileName.includes('bp') || fileName.includes('cardio')) {
+        name = 'Lisinopril';
+        strength = '10 mg';
+        freq = 'Daily';
+        time = '08:00';
+        qty = 30;
+        notes = 'Take in morning with water. Monitor blood pressure.';
+      } else if (fileName.includes('asthma') || fileName.includes('inhaler') || fileName.includes('albuterol')) {
+        name = 'Albuterol Sulfate Inhaler';
+        strength = '90 mcg';
+        freq = 'Custom';
+        time = '10:00';
+        qty = 14;
+        notes = '2 inhalations as needed for wheezing. Rinse mouth.';
+      }
+
+      setPrescriptionFormData(name, strength, freq, time, qty, notes);
+      showToast(`Scanned "${file ? file.name : 'Prescription'}"! Please review extracted fields below.`, 'success');
+    }, 1100);
+  }
+
+  // 3. Quick Demo Sample Prescriptions
+  sample1?.addEventListener('click', () => {
+    if (overlay) overlay.style.display = 'flex';
+    setTimeout(() => {
+      if (overlay) overlay.style.display = 'none';
+      setPrescriptionFormData(
+        'Metformin Hydrochloride',
+        '500 mg',
+        'Daily',
+        '08:00',
+        30,
+        '30 days • Take with meals to minimize gastrointestinal discomfort'
+      );
+      showToast('Sample Cardiology Prescription parsed. Review & verify below.', 'info');
+    }, 700);
+  });
+
+  sample2?.addEventListener('click', () => {
+    if (overlay) overlay.style.display = 'flex';
+    setTimeout(() => {
+      if (overlay) overlay.style.display = 'none';
+      setPrescriptionFormData(
+        'Amoxicillin Trihydrate',
+        '500 mg',
+        'Twice Daily',
+        '09:00',
+        20,
+        '10 days • Take every 12 hours. Complete entire antibiotic course.'
+      );
+      showToast('Sample Antibiotic Regimen parsed. Review & verify below.', 'info');
+    }, 700);
+  });
+
+  function setPrescriptionFormData(name, strength, freq, time, qty, duration) {
+    const elName = document.getElementById('ocrMedName');
+    const elStrength = document.getElementById('ocrStrength');
+    const elFreq = document.getElementById('ocrFrequency');
+    const elTime = document.getElementById('ocrTiming');
+    const elQty = document.getElementById('ocrQuantity');
+    const elDuration = document.getElementById('ocrDuration');
+
+    if (elName) elName.value = name;
+    if (elStrength) elStrength.value = strength;
+    if (elFreq) elFreq.value = freq;
+    if (elTime) elTime.value = time;
+    if (elQty) elQty.value = qty;
+    if (elDuration) elDuration.value = duration;
+
+    if (verifyChk) verifyChk.checked = false;
+    if (saveBtn) saveBtn.disabled = true;
+  }
+
+  // 4. Verification Checkbox
+  verifyChk?.addEventListener('change', (e) => {
+    if (saveBtn) saveBtn.disabled = !e.target.checked;
+  });
+
+  // 5. Verification Form Submission
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!verifyChk?.checked) {
+      showToast('Please confirm the verification checkbox before saving.', 'warning');
+      return;
+    }
+
+    const medName = document.getElementById('ocrMedName')?.value.trim();
+    const medStrength = document.getElementById('ocrStrength')?.value.trim();
+    const medFreq = document.getElementById('ocrFrequency')?.value || 'Daily';
+    const medTime = document.getElementById('ocrTiming')?.value || '08:00';
+    const medQty = parseInt(document.getElementById('ocrQuantity')?.value, 10) || 30;
+    const medNotes = document.getElementById('ocrDuration')?.value.trim() || '';
+
+    if (!medName || !medStrength) {
+      showToast('Medicine name and strength are required.', 'warning');
+      return;
+    }
+
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving to Schedule...';
+    }
+
+    const newMed = {
+      name: medName,
+      strength: medStrength,
+      category: 'Tablet',
+      frequency: medFreq,
+      time: medTime,
+      quantity: medQty,
+      refillThreshold: 7,
+      notes: medNotes
+    };
+
+    const medRes = await ApiClient.addMedication(newMed);
+    if (medRes.error) {
+      showToast(medRes.error, 'danger');
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Confirm & Add to Medication Schedule';
+      }
+      return;
+    }
+
+    await ApiClient.addPrescription({
+      title: `${medName} Prescription`,
+      doctor_name: 'Verified Physical Prescription',
+      date_issued: getTodayDateString(),
+      extracted_data: `${medName} ${medStrength} (${medFreq} at ${medTime})`
+    });
+
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = `
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        Confirm &amp; Add to Medication Schedule
+      `;
+    }
+
+    form.reset();
+    if (verifyChk) verifyChk.checked = false;
+
+    showToast(`✓ Confirmed! "${medName}" added to your medication schedule and reminder list!`, 'success');
+    await loadUserData();
+
+    // Switch to Prescribed Medications view so user immediately sees their schedule
+    switchView('medications');
+  });
+}
+
+function checkScheduledReminders() {
+  if (!appState.authenticated || !appState.medications || appState.medications.length === 0) return;
+  const current24 = getCurrentTime24();
+  const todayStr = getTodayDateString();
+
+  appState.medications.forEach(med => {
+    if (med.status !== 'pending') return;
+    if (med.time === current24) {
+      const reminderKey = `${med.id}_${todayStr}_${current24}`;
+      if (!appState.remindedKeys.has(reminderKey)) {
+        appState.remindedKeys.add(reminderKey);
+        playReminderChime();
+        showToast(`⏰ Medication Reminder: Time to take ${med.name} (${med.strength})!`, 'warning');
+      }
+    }
+  });
+}
+
+// =============================================================
 // 17. INITIALIZATION ON PAGE LOAD
 // =============================================================
 
 async function init() {
   setupAuthEventListeners();
   setupProfileController();
+  setupPrescriptionScannerController();
   attachActionHandlers();
 
   // Check active session
@@ -2186,7 +2461,10 @@ async function init() {
 
   // Clocks and periodic loop
   setInterval(() => {
-    if (appState.authenticated) renderDashboard();
+    if (appState.authenticated) {
+      renderDashboard();
+      checkScheduledReminders();
+    }
   }, 1000);
 }
 
