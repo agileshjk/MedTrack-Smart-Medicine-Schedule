@@ -1,108 +1,95 @@
-# MedTrack – Smart Medicine Schedule & Reminder
+# MedGuide AI – Multi-User Clinical Health & Medication Platform
 
-A modern, responsive healthcare web application built with **HTML5, CSS3, and Vanilla JavaScript**, using **LocalStorage** for offline persistence.
+An AI-assisted medication adherence, interaction checking, and wellness platform developed for **UN Sustainable Development Goal 3 (UN SDG 3: Good Health and Well-Being)**.
 
-> **Target:** College CSE Project  
-> **Theme:** United Nations Sustainable Development Goal 3 (UN SDG 3) – **Good Health and Well-Being** (Target 3.8: Access to essential medicines & Target 3.d: Early warning & health risk reduction).
-
----
-
-## 🌟 Features Overview
-
-### 1. Interactive Health Dashboard
-- **Live Clock & Date**: Displays real-time local time and calendar date with continuous ticking.
-- **Dose Counters**: Real-time counts for:
-  - Total Scheduled Medicines
-  - Medicines Taken
-  - Medicines Pending
-  - Medicines Skipped
-- **Adherence Rate & Progress Bar**: Dynamically calculates completion percentage:
-  $$\text{Completion Percentage} = \left(\frac{\text{Taken Medicines}}{\text{Total Scheduled Medicines}}\right) \times 100$$
-  Visualized with an animated, rounded progress bar and motivational adherence feedback.
-
-### 2. Add Medicine Form
-- **Inputs**: Medicine Name, Dosage, Type/Form (Tablet, Capsule, Syrup, Injection, Drops, Inhaler), Scheduled Time, Frequency (Daily, Twice Daily, Weekly, Custom), and Instructions/Notes.
-- **Dynamic Field Visibility**:
-  - Selecting *Twice Daily* reveals an input for the second dose time.
-  - Selecting *Weekly* reveals an intake day selector.
-- **Client-Side Validation**: Validates all required inputs with inline feedback messages.
-
-### 3. Medicine Schedule & Chronological Sorting
-- **Cards View**: Clean cards with medicine icon, dosage badge, scheduled time chip, frequency, instructions, and status badges.
-- **Chronological Sorting**: Automatically sorts medicines by time of day.
-- **Action Controls**:
-  - **Mark as Taken**: Updates status, recalculates adherence, and logs to history.
-  - **Skip**: Marks dose as intentionally skipped and logs to history.
-  - **Reset to Pending**: Allows undoing an accidental click.
-  - **Delete**: Safely removes medicine after confirmation.
-
-### 4. Smart In-Page Reminder System
-- **Real-Time Clock Monitor**: Continuously monitors the system time every second.
-- **In-Page Reminder Modal**: Pops up when the current time matches a scheduled dose, presenting medicine name, dosage, time, and instructions.
-- **Web Audio API Chime**: Plays a 3-tone synthesizer chime without requiring external sound files.
-- **Snooze Option**: Allows snoozing a reminder for 5 minutes.
-- **"Test Reminder" Button**: Allows students and evaluators to trigger and demonstrate the reminder popup instantly during viva evaluations.
-- **Optional Web Push Notifications**: Integrates browser notifications if supported and allowed.
-
-### 5. Search & Filter
-- **Live Search**: Instant filtering by medicine name, dosage, or instructions.
-- **Filter Pills**: Quick toggle between **All**, **Pending**, **Taken**, and **Skipped** doses with real-time count badges.
-
-### 6. Medication Intake History Log
-- Comprehensive table recording intake actions with:
-  - Medicine Name
-  - Dosage
-  - Scheduled Time
-  - Date & Timestamp of Action
-  - Status (Taken / Skipped)
-- **Clear Log Option**: Allows clearing the history log with confirmation.
-
-### 7. Offline LocalStorage Persistence
-- Saves medicines, daily status, history, and timestamps.
-- **Automatic New-Day Reset**: When launched on a new calendar date, daily dose statuses reset to *Pending* while preserving the complete historical log.
-- **Sample Data Seeder**: Includes preset sample data for immediate evaluation and viva demonstrations.
-
-### 8. Safety Notice
-- Built-in disclaimer: *"This application is a medication reminder and organization tool. It does not provide medical diagnosis or replace professional medical advice."*
+> **Architecture:** Full-Stack Multi-User Application  
+> **Backend & Database:** Python 3 HTTP Server + Relational SQLite Database (`medguide.db`)  
+> **Frontend:** Pure HTML5, CSS3, Vanilla JavaScript, Chart.js  
+> **Execution:** Running locally on `http://localhost:5000`
 
 ---
 
-## 📁 Project Structure
+## 👥 Multi-User Authentication & Data Isolation
+
+MedGuide AI supports multiple independent patient accounts with complete data isolation enforced at the database layer via `user_id` foreign keys and token-based authentication.
+
+### Demo Patient Accounts (1-Click Login):
+| Account | Email | Password | Profile Summary |
+| :--- | :--- | :--- | :--- |
+| **Alex Johnson** (Patient A) | `alex@example.com` | `password123` | Age 52, Male, Type 2 Diabetes & Hypertension, 3 Medications (Metformin, Lisinopril, Atorvastatin) |
+| **Sarah Davis** (Patient B) | `sarah@example.com` | `password123` | Age 34, Female, Bronchial Asthma & Rhinitis, 2 Medications (Albuterol Inhaler, Cetirizine) |
+| **New Register** | *Any email* | *Custom* | Starts with a 100% clean, empty schedule (no hardcoded data!) |
+
+---
+
+## 🔒 Security & Architecture Overview
+
+- **Protected Routes**: Unauthenticated users can only access the **Authentication Portal** (Sign In, Create Account, Reset Password).
+- **Session Tokens**: Cryptographically secure 256-bit bearer tokens (`secrets.token_hex(32)`) validated on every `/api/*` call.
+- **Strict Data Ownership**: Every SQL query is filtered by `WHERE user_id = ?` derived directly from the validated session token. User A can never see or modify User B's medications, symptoms, or records.
+- **Password Protection**: Passwords hashed with PBKDF2-HMAC-SHA256 with individual cryptographic salts.
+
+---
+
+## 🛠️ Relational Database Schema (`medguide.db`)
 
 ```text
-medtrack/
-├── index.html          # Semantic HTML5 layout and modal structure
-├── style.css           # Modern healthcare dashboard theme & responsive styles
-├── script.js           # Vanilla JavaScript business logic, LocalStorage & Audio API
-├── test_suite.html     # Automated browser test suite (22 unit & integration tests)
-└── README.md           # Project documentation and viva guide
+users              (id, email, password_hash, salt, created_at)
+sessions           (token, user_id, created_at)
+profiles           (user_id, name, age, gender, height, weight, blood_type, conditions, allergies, sleep_avg)
+medications        (id, user_id, name, strength, category, frequency, time, quantity, refill_threshold, status)
+adherence_records  (id, user_id, medication_id, medication_name, status, scheduled_time, logged_at, date)
+symptoms           (id, user_id, name, severity, date, time, medication_name, notes)
+prescriptions      (id, user_id, title, doctor_name, date_issued, extracted_data, status)
+diet_preferences   (user_id, cuisine, dietary_style, activity_level)
+caregivers         (user_id, name, relation, phone, email, permissions)
+emergency_cards    (user_id, ice_contact_name, ice_contact_phone, doctor_name, doctor_phone, custom_notes)
 ```
 
 ---
 
-## 🚀 How to Run
+## 🌟 Fully Connected Features
 
-1. **Directly in Browser**:
-   - Double-click or open `index.html` in Google Chrome, Microsoft Edge, Mozilla Firefox, or Safari.
-   - No installation, Node.js, build step, or web server required!
+1. **Working Profile CRUD**:
+   - View and edit demographics, biometrics, conditions, allergies, and emergency contacts.
+   - Calculates real BMI dynamically; persists across sessions.
 
-2. **Run Automated Tests**:
-   - Double-click or open `test_suite.html` in your browser.
-   - All 22 automated unit and integration tests will execute and display live results.
+2. **Full Medication CRUD**:
+   - **Add**: Form with name, strength, frequency, time, and inventory count.
+   - **Edit**: Modal allows editing any active prescription.
+   - **Delete**: Safely archives/deletes from the database.
+   - **Track**: Clicking **Mark as Taken** creates a real adherence record in `adherence_records` and decrements pill inventory.
+
+3. **Real Health Insights Engine**:
+   - Calculates insights from the authenticated user's actual database records.
+   - If a new user has no records: *"Not enough data yet. Add medications, adherence records, or symptoms to generate insights."*
+
+4. **Symptom Tracker CRUD & Graphs**:
+   - Add, edit, and delete symptoms with 1–5 severity ratings.
+   - Line chart rendered from real user severity records.
+   - Automated recurring pattern alert triggered when severity $\ge 3$ recurs.
+
+5. **Top-Right Profile Dropdown**:
+   - Includes **My Profile**, **Health Information**, **Settings**, **Switch Account**, and **Sign Out**.
+
+6. **Prescription Scanner**:
+   - OCR simulation with human verification step before saving to the database.
+
+7. **Smart Refill Tracker**:
+   - Tracks actual pill quantities; triggers low-supply alert when supply $\le 7$ days; working **+ Refill (+30)** button.
 
 ---
 
-## 🎓 College Viva & CSE Presentation Guide
+## 🚀 How to Run Locally
 
-### 1. Why UN SDG 3?
-Medication non-adherence is a major global healthcare challenge. According to the WHO, approximately 50% of patients with chronic illnesses do not take medications as prescribed. MedTrack improves adherence through automated reminders, dosage tracking, and visual progress indicators.
+The server is currently running in the background:
 
-### 2. Why Vanilla JavaScript and LocalStorage?
-- **Zero Dependencies**: Ensures maximum portability, runs anywhere without npm or build tools.
-- **High Performance**: Instant load times and zero network latency.
-- **Explainability**: Code is clean and modular, ideal for academic presentation and grading.
+```text
+http://localhost:5000
+```
 
-### 3. How does the Reminder System work without external libraries?
-- `setInterval` evaluates current time against scheduled times.
-- Native **Web Audio API** (`window.AudioContext`) synthesizes custom sound frequencies (C5, E5, G5) in real-time, removing any dependency on third-party audio files.
-- Persistent session keys prevent duplicate notifications in the same minute slot.
+To run manually at any time:
+```powershell
+python server.py
+```
+Open `http://localhost:5000` in any web browser.

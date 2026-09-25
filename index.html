@@ -3,488 +3,1886 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MedTrack – Smart Medicine Schedule & Reminder</title>
-  <meta name="description" content="MedTrack is a smart medication scheduling and reminder web application promoting UN SDG 3: Good Health and Well-Being.">
+  <title>MedGuide AI – Smart Medication & Wellness Platform</title>
+  <meta name="description" content="MedGuide AI: AI-assisted medication scheduling, interaction checking, personalized diet, symptom tracking, and health insights for UN SDG 3.">
   <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💊</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🩺</text></svg>">
+  <!-- Chart.js via CDN for interactive adherence and symptom graphs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
-<body>
-  <!-- Header / Navigation -->
-  <header class="app-header">
-    <div class="header-container">
-      <div class="brand-section">
-        <div class="logo-wrapper">
-          <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M10.5 20.5 3 13a4.95 4.95 0 1 1 7-7l7.5 7.5a4.95 4.95 0 1 1-7 7Z"></path>
-            <path d="m8.5 8.5 7 7"></path>
+<body class="app-body">
+
+  <!-- ========================================================
+       AUTHENTICATION PORTAL (Section 1: Multi-User Authentication)
+       ======================================================== -->
+  <div class="auth-portal-overlay" id="authPortal" style="display: none;">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="auth-brand-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v20M2 12h20"></path>
+            <circle cx="12" cy="12" r="9.5"></circle>
           </svg>
         </div>
-        <div>
-          <div class="brand-title-row">
-            <h1 class="brand-title">MedTrack</h1>
-            <span class="sdg-badge" title="UN Sustainable Development Goal 3: Good Health & Well-Being">
-              <span class="sdg-dot"></span> UN SDG 3: Good Health &amp; Well-Being
-            </span>
+        <h2 class="auth-title">MedGuide <span class="ai-badge">AI</span></h2>
+        <p class="auth-subtitle">Smart Medication &amp; Wellness Management Platform</p>
+        <div class="mt-2"><span class="sdg-badge"><span class="sdg-dot"></span> UN SDG 3: Good Health &amp; Well-Being</span></div>
+      </div>
+
+      <!-- Auth Navigation Tabs -->
+      <div class="auth-tabs-row">
+        <button type="button" class="auth-tab-btn active" id="authTabLogin">Sign In</button>
+        <button type="button" class="auth-tab-btn" id="authTabRegister">Create Account</button>
+        <button type="button" class="auth-tab-btn" id="authTabForgot">Reset Password</button>
+      </div>
+
+      <!-- 1. SIGN IN FORM -->
+      <div class="auth-tab-content active" id="authPanelLogin">
+        <form id="loginForm">
+          <div class="form-group">
+            <label class="form-label" for="loginEmail">Email Address <span class="required-star">*</span></label>
+            <input type="email" id="loginEmail" class="form-input" placeholder="e.g. alex@example.com" required value="alex@example.com">
           </div>
-          <p class="brand-subtitle">Smart Medicine Schedule &amp; Adherence Reminder</p>
+          <div class="form-group">
+            <label class="form-label" for="loginPassword">Password <span class="required-star">*</span></label>
+            <input type="password" id="loginPassword" class="form-input" placeholder="Enter your password" required value="password123">
+          </div>
+          <div class="flex-align-center justify-between mb-4">
+            <label class="checkbox-label text-xs">
+              <input type="checkbox" id="loginRemember" checked>
+              <span>Keep me signed in</span>
+            </label>
+            <a href="#" class="text-xs text-primary font-bold" id="linkToForgotPassword">Forgot password?</a>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block btn-lg" id="btnSubmitLogin">
+            Sign In to Dashboard
+          </button>
+        </form>
+
+        <!-- 1-Click Multi-User Demonstration Accounts (Section 2 & 12) -->
+        <div class="demo-accounts-box mt-4">
+          <span class="demo-box-label">⚡ 1-Click College Viva Evaluation Accounts:</span>
+          <div class="demo-buttons-col">
+            <button type="button" class="btn-demo-switch" id="btnQuickDemoAlex">
+              <div class="demo-user-avatar">AJ</div>
+              <div class="demo-user-meta">
+                <strong>Alex Johnson (Patient A)</strong>
+                <span>Age 52 &bull; Diabetes &amp; Hypertension &bull; 3 Medications</span>
+              </div>
+            </button>
+            <button type="button" class="btn-demo-switch" id="btnQuickDemoSarah">
+              <div class="demo-user-avatar" style="background: var(--color-teal);">SD</div>
+              <div class="demo-user-meta">
+                <strong>Sarah Davis (Patient B)</strong>
+                <span>Age 34 &bull; Asthma &amp; Rhinitis &bull; 2 Medications</span>
+              </div>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div class="header-status">
-        <div class="clock-card" id="clockCard">
-          <div class="live-time" id="liveTime">00:00:00 --</div>
-          <div class="live-date" id="liveDate">Loading date...</div>
+      <!-- 2. REGISTER NEW PATIENT FORM -->
+      <div class="auth-tab-content" id="authPanelRegister" style="display: none;">
+        <form id="registerForm">
+          <div class="form-group">
+            <label class="form-label" for="regName">Full Patient Name <span class="required-star">*</span></label>
+            <input type="text" id="regName" class="form-input" placeholder="e.g. Dr. Robert Chen" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="regEmail">Email Address <span class="required-star">*</span></label>
+            <input type="email" id="regEmail" class="form-input" placeholder="e.g. robert.chen@example.com" required>
+          </div>
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label" for="regPassword">Password <span class="required-star">*</span></label>
+              <input type="password" id="regPassword" class="form-input" placeholder="Min. 6 chars" required minlength="6">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="regConfirmPassword">Confirm Password <span class="required-star">*</span></label>
+              <input type="password" id="regConfirmPassword" class="form-input" placeholder="Re-enter password" required minlength="6">
+            </div>
+          </div>
+          <p class="text-xs text-muted mb-4">
+            By registering, a dedicated, isolated database partition is provisioned for your medical records.
+          </p>
+          <button type="submit" class="btn btn-primary btn-block btn-lg" id="btnSubmitRegister">
+            Create Patient Account
+          </button>
+        </form>
+      </div>
+
+      <!-- 3. FORGOT / RESET PASSWORD FORM -->
+      <div class="auth-tab-content" id="authPanelForgot" style="display: none;">
+        <form id="forgotForm">
+          <p class="text-xs text-secondary mb-3">
+            Enter your registered email address. MedGuide AI will verify your account and provide a secure temporary password.
+          </p>
+          <div class="form-group">
+            <label class="form-label" for="forgotEmail">Email Address <span class="required-star">*</span></label>
+            <input type="email" id="forgotEmail" class="form-input" placeholder="e.g. alex@example.com" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block btn-lg" id="btnSubmitForgot">
+            Reset Account Password
+          </button>
+          <div class="text-center mt-3">
+            <a href="#" class="text-xs text-primary font-bold" id="linkBackToLogin">&larr; Back to Sign In</a>
+          </div>
+        </form>
+      </div>
+
+      <!-- Medical Safety Notice -->
+      <div class="auth-footer-notice">
+        <p class="text-xs text-muted">
+          <strong>Medical Notice:</strong> MedGuide AI provides educational and medication-management support. It does not diagnose medical conditions, prescribe medication, or replace advice from doctors, pharmacists, or dietitians.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Desktop & Mobile Shell Container (Protected View) -->
+  <div class="app-shell" id="appShellMain">
+
+    <!-- 1. LEFT SIDEBAR NAVIGATION -->
+    <aside class="app-sidebar" id="appSidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v20M2 12h20"></path>
+            <circle cx="12" cy="12" r="9.5"></circle>
+          </svg>
         </div>
-        <div class="header-actions">
-          <button type="button" class="btn btn-secondary btn-sm" id="btnTestReminder" title="Trigger instant reminder popup for demo">
+        <div class="brand-text-block">
+          <span class="brand-name">MedGuide <span class="ai-badge">AI</span></span>
+          <span class="brand-tagline">Health &amp; Wellness Suite</span>
+        </div>
+        <button type="button" class="sidebar-close-btn" id="sidebarCloseBtn" aria-label="Close sidebar">&times;</button>
+      </div>
+
+      <!-- User Mini Profile -->
+      <div class="sidebar-user-card" id="sidebarUserCard">
+        <div class="user-avatar" id="userAvatar">AJ</div>
+        <div class="user-info">
+          <span class="user-name" id="sidebarUserName">Alex Johnson</span>
+          <span class="user-role">Patient &bull; Age 52</span>
+        </div>
+      </div>
+
+      <!-- Navigation Links -->
+      <nav class="sidebar-nav" aria-label="Main Navigation">
+        <div class="nav-group-title">CORE MANAGEMENT</div>
+        <a href="#dashboard" class="nav-item active" data-view="dashboard">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect width="7" height="9" x="3" y="3" rx="1"></rect>
+            <rect width="7" height="5" x="14" y="3" rx="1"></rect>
+            <rect width="7" height="9" x="14" y="12" rx="1"></rect>
+            <rect width="7" height="5" x="3" y="16" rx="1"></rect>
+          </svg>
+          <span>Dashboard</span>
+        </a>
+
+        <a href="#medications" class="nav-item" data-view="medications">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"></path>
+            <path d="m8.5 8.5 7 7"></path>
+          </svg>
+          <span>My Medications</span>
+          <span class="nav-badge" id="navMedCount">3</span>
+        </a>
+
+        <a href="#prescription-scanner" class="nav-item" data-view="prescription-scanner">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 7V4h3M20 7V4h-3M4 17v3h3M20 17v3h-3"></path>
+            <line x1="4" y1="12" x2="20" y2="12"></line>
+            <rect width="10" height="12" x="7" y="6" rx="1"></rect>
+          </svg>
+          <span>Prescription Scanner</span>
+          <span class="ai-spark-tag">AI OCR</span>
+        </a>
+
+        <div class="nav-group-title">CLINICAL INTELLIGENCE</div>
+        <a href="#interactions" class="nav-item" data-view="interactions">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+          <span>Interaction Checker</span>
+        </a>
+
+        <a href="#diet-planner" class="nav-item" data-view="diet-planner">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2a9 9 0 0 1 9 9c0 4.97-4.03 9-9 9s-9-4.03-9-9a9 9 0 0 1 9-9Z"></path>
+            <path d="M12 7v5l3 3"></path>
+          </svg>
+          <span>Personalized Diet</span>
+        </a>
+
+        <a href="#symptoms" class="nav-item" data-view="symptoms">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+          </svg>
+          <span>Symptom Tracker</span>
+        </a>
+
+        <div class="nav-group-title">ADHERENCE &amp; TRENDS</div>
+        <a href="#adherence" class="nav-item" data-view="adherence">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+            <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+          </svg>
+          <span>Adherence Dashboard</span>
+        </a>
+
+        <a href="#health-insights" class="nav-item" data-view="health-insights">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
+          </svg>
+          <span>Health Insights</span>
+          <span class="ai-spark-tag">AI</span>
+        </a>
+
+        <a href="#refill-tracker" class="nav-item" data-view="refill-tracker">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect width="16" height="20" x="4" y="2" rx="2"></rect>
+            <path d="M8 6h8M8 10h8M8 14h5"></path>
+          </svg>
+          <span>Refill Tracker</span>
+          <span class="badge-alert-dot" id="refillAlertDot"></span>
+        </a>
+
+        <div class="nav-group-title">SUPPORT &amp; SAFETY</div>
+        <a href="#caregiver" class="nav-item" data-view="caregiver">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          <span>Caregiver Support</span>
+        </a>
+
+        <a href="#emergency-card" class="nav-item" data-view="emergency-card">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect width="20" height="14" x="2" y="5" rx="2"></rect>
+            <line x1="2" x2="22" y1="10" y2="10"></line>
+          </svg>
+          <span>Emergency Card</span>
+        </a>
+
+        <a href="#health-profile" class="nav-item" data-view="health-profile">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M12 16v-4M12 8h.01"></path>
+          </svg>
+          <span>Health Profile</span>
+        </a>
+
+        <a href="#settings" class="nav-item" data-view="settings">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span>Settings</span>
+        </a>
+      </nav>
+
+      <!-- Sidebar Footer Disclaimer -->
+      <div class="sidebar-footer">
+        <span class="sdg-badge"><span class="sdg-dot"></span> UN SDG 3: Good Health</span>
+        <p class="sidebar-disclaimer-snippet">Educational &amp; management tool. Not medical diagnosis.</p>
+      </div>
+    </aside>
+
+    <!-- 2. MAIN APPLICATION CONTENT AREA -->
+    <div class="app-main-wrapper">
+      
+      <!-- Top Header Bar -->
+      <header class="top-navbar">
+        <div class="topbar-left">
+          <button type="button" class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open sidebar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+          <div class="page-title-wrap">
+            <h2 class="current-view-title" id="currentViewTitle">Dashboard Overview</h2>
+            <span class="today-date-text" id="topbarLiveDate">Loading date...</span>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <!-- Live Clock -->
+          <div class="live-clock-badge" id="liveClockBadge">00:00:00 AM</div>
+
+          <!-- Voice Assistant Button -->
+          <button type="button" class="btn btn-voice-assistant" id="btnOpenVoiceAssistant" title="Ask MedGuide Voice Assistant">
+            <svg class="btn-icon pulse-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <line x1="12" y1="19" x2="12" y2="23"></line>
+              <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+            <span class="voice-btn-label">Voice Assistant</span>
+          </button>
+
+          <!-- Quick Test Reminder Demo Button -->
+          <button type="button" class="btn btn-outline btn-sm" id="btnTestReminder" title="Trigger instant reminder popup for evaluation">
             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
               <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
             </svg>
-            Test Reminder
+            <span class="btn-text-desktop">Test Reminder</span>
           </button>
-          <button type="button" class="btn btn-outline btn-sm" id="btnEnableNotifications" title="Toggle browser push notifications">
+
+          <!-- Quick Emergency Card Trigger -->
+          <button type="button" class="btn btn-danger-soft btn-sm" id="btnQuickEmergency" title="Open Emergency Health Card">
             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
-              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
-              <circle cx="18" cy="6" r="3" fill="#10b981"></circle>
+              <rect width="18" height="18" x="3" y="3" rx="2"></rect>
+              <path d="M12 8v8M8 12h8"></path>
             </svg>
-            <span id="notifBtnText">Notifications: On</span>
+            <span class="btn-text-desktop">Emergency ID</span>
           </button>
-        </div>
-      </div>
-    </div>
-  </header>
 
-  <!-- Main Application Body -->
-  <main class="main-container">
-    
-    <!-- 1. DASHBOARD & STATS SECTION -->
-    <section class="dashboard-section" aria-label="Dashboard Overview">
-      <div class="section-title-wrap">
-        <h2 class="section-title">Today's Health &amp; Adherence Dashboard</h2>
-        <span class="date-chip" id="dashboardDateChip">Today</span>
-      </div>
-
-      <div class="stats-grid">
-        <!-- Stat: Total -->
-        <div class="stat-card stat-total">
-          <div class="stat-icon-wrapper">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect>
-              <line x1="16" x2="16" y1="2" y2="6"></line>
-              <line x1="8" x2="8" y1="2" y2="6"></line>
-              <line x1="3" x2="21" y1="10" y2="10"></line>
-            </svg>
-          </div>
-          <div class="stat-content">
-            <span class="stat-label">Total Scheduled</span>
-            <span class="stat-number" id="statTotal">0</span>
-            <span class="stat-subtext">Medicines for today</span>
-          </div>
-        </div>
-
-        <!-- Stat: Taken -->
-        <div class="stat-card stat-taken">
-          <div class="stat-icon-wrapper">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-          </div>
-          <div class="stat-content">
-            <span class="stat-label">Medicines Taken</span>
-            <span class="stat-number" id="statTaken">0</span>
-            <span class="stat-subtext">Doses completed</span>
-          </div>
-        </div>
-
-        <!-- Stat: Pending -->
-        <div class="stat-card stat-pending">
-          <div class="stat-icon-wrapper">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-          </div>
-          <div class="stat-content">
-            <span class="stat-label">Medicines Pending</span>
-            <span class="stat-number" id="statPending">0</span>
-            <span class="stat-subtext">Awaiting time or dose</span>
-          </div>
-        </div>
-
-        <!-- Stat: Skipped -->
-        <div class="stat-card stat-skipped">
-          <div class="stat-icon-wrapper">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="15" y1="9" x2="9" y2="15"></line>
-              <line x1="9" y1="9" x2="15" y2="15"></line>
-            </svg>
-          </div>
-          <div class="stat-content">
-            <span class="stat-label">Medicines Skipped</span>
-            <span class="stat-number" id="statSkipped">0</span>
-            <span class="stat-subtext">Doses intentionally missed</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Daily Completion Progress Bar -->
-      <div class="progress-card">
-        <div class="progress-header">
-          <div class="progress-info">
-            <span class="progress-title">Daily Adherence Rate</span>
-            <span class="progress-motto" id="progressMotto">Ready to begin your day</span>
-          </div>
-          <div class="progress-percent" id="progressPercentage">0%</div>
-        </div>
-        <div class="progress-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-          <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
-        </div>
-        <div class="progress-footer">
-          <span id="progressSummary">0 of 0 medicines taken</span>
-          <span class="adherence-target"><span class="badge-dot"></span> Target: 100% On-Time Intake</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- Content Columns: Left (Add Med Form), Right (Schedule & History) -->
-    <div class="app-layout-grid">
-      
-      <!-- 2. ADD MEDICINE FORM COLUMN -->
-      <section class="form-column" aria-label="Add Medicine">
-        <div class="card form-card">
-          <div class="card-header">
-            <div class="card-title-icon form-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 5v14M5 12h14"/>
-              </svg>
-            </div>
-            <div>
-              <h3 class="card-title">Add New Medicine</h3>
-              <p class="card-subtitle">Schedule dosage &amp; reminder times</p>
-            </div>
-          </div>
-
-          <form id="addMedicineForm" novalidate>
-            <!-- Medicine Name -->
-            <div class="form-group">
-              <label for="medName" class="form-label">
-                Medicine Name <span class="required-star">*</span>
-              </label>
-              <div class="input-with-icon">
-                <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"></path>
-                  <path d="m8.5 8.5 7 7"></path>
-                </svg>
-                <input type="text" id="medName" name="medName" class="form-control" placeholder="e.g. Paracetamol, Metformin, Amoxicillin" required>
+          <!-- User Profile Dropdown Menu (Section 13) -->
+          <div class="user-profile-dropdown-wrap" id="userProfileDropdownWrap">
+            <button type="button" class="user-profile-menu-btn" id="userProfileMenuBtn" aria-expanded="false" title="Account Menu">
+              <div class="user-avatar-sm" id="topbarUserAvatar">AJ</div>
+              <span class="user-name-sm" id="topbarUserName">Alex Johnson</span>
+              <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="user-profile-dropdown-menu" id="userProfileDropdownMenu" style="display: none;">
+              <div class="dropdown-user-header">
+                <strong id="dropdownFullName">Alex Johnson</strong>
+                <span class="dropdown-email-text" id="dropdownEmail">alex@example.com</span>
               </div>
-              <span class="field-error" id="medNameError"></span>
-            </div>
-
-            <!-- Dosage & Category Grid -->
-            <div class="form-row-2">
-              <div class="form-group">
-                <label for="medDosage" class="form-label">
-                  Dosage <span class="required-star">*</span>
-                </label>
-                <input type="text" id="medDosage" name="medDosage" class="form-control" placeholder="e.g. 500 mg, 1 tablet, 10 ml" required>
-                <span class="field-error" id="medDosageError"></span>
-              </div>
-
-              <div class="form-group">
-                <label for="medCategory" class="form-label">Type / Form</label>
-                <select id="medCategory" name="medCategory" class="form-control">
-                  <option value="Tablet">Tablet 💊</option>
-                  <option value="Capsule">Capsule 💊</option>
-                  <option value="Syrup">Syrup / Liquid 🧴</option>
-                  <option value="Injection">Injection 💉</option>
-                  <option value="Drops">Eye/Ear Drops 💧</option>
-                  <option value="Inhaler">Inhaler 🫁</option>
-                  <option value="Other">Other Medicine 🩹</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Frequency & Time Row -->
-            <div class="form-row-2">
-              <div class="form-group">
-                <label for="medFrequency" class="form-label">
-                  Frequency <span class="required-star">*</span>
-                </label>
-                <select id="medFrequency" name="medFrequency" class="form-control" required>
-                  <option value="Daily">Daily (Once a day)</option>
-                  <option value="Twice Daily">Twice Daily (2 Doses)</option>
-                  <option value="Weekly">Weekly</option>
-                  <option value="Custom">Custom / As Needed</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label for="medTime" class="form-label">
-                  Primary Time <span class="required-star">*</span>
-                </label>
-                <input type="time" id="medTime" name="medTime" class="form-control" required>
-                <span class="field-error" id="medTimeError"></span>
-              </div>
-            </div>
-
-            <!-- Secondary Time (Visible if Twice Daily) -->
-            <div class="form-group" id="secondaryTimeGroup" style="display: none;">
-              <label for="medTime2" class="form-label">
-                Second Dose Time <span class="required-star">*</span>
-              </label>
-              <input type="time" id="medTime2" name="medTime2" class="form-control">
-              <span class="field-error" id="medTime2Error"></span>
-            </div>
-
-            <!-- Weekly Day Selector (Visible if Weekly) -->
-            <div class="form-group" id="weeklyDayGroup" style="display: none;">
-              <label for="medWeeklyDay" class="form-label">Day of Week</label>
-              <select id="medWeeklyDay" name="medWeeklyDay" class="form-control">
-                <option value="Monday">Every Monday</option>
-                <option value="Tuesday">Every Tuesday</option>
-                <option value="Wednesday">Every Wednesday</option>
-                <option value="Thursday">Every Thursday</option>
-                <option value="Friday">Every Friday</option>
-                <option value="Saturday">Every Saturday</option>
-                <option value="Sunday">Every Sunday</option>
-              </select>
-            </div>
-
-            <!-- Notes -->
-            <div class="form-group">
-              <label for="medNotes" class="form-label">
-                Optional Notes &amp; Instructions
-              </label>
-              <textarea id="medNotes" name="medNotes" class="form-control" rows="2" placeholder="e.g. Take after breakfast with a full glass of warm water. Avoid dairy."></textarea>
-            </div>
-
-            <!-- Form Actions -->
-            <div class="form-actions">
-              <button type="submit" class="btn btn-primary btn-block" id="btnAddMed">
-                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M5 12h14"></path>
-                  <path d="M12 5v14"></path>
-                </svg>
-                Add Medicine to Schedule
+              <div class="dropdown-divider"></div>
+              <a href="#health-profile" class="dropdown-item" id="menuItemMyProfile">
+                <svg class="dropdown-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                My Profile
+              </a>
+              <a href="#health-profile" class="dropdown-item" id="menuItemHealthInfo">
+                <svg class="dropdown-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>
+                Health Information
+              </a>
+              <a href="#settings" class="dropdown-item" id="menuItemSettings">
+                <svg class="dropdown-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                Settings
+              </a>
+              <div class="dropdown-divider"></div>
+              <button type="button" class="dropdown-item text-primary" id="btnSwitchAccount">
+                <svg class="dropdown-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                Switch Account / Sign In as Another User
               </button>
-              <button type="button" class="btn btn-ghost btn-sm" id="btnResetForm">Clear Form</button>
+              <button type="button" class="dropdown-item text-danger" id="btnLogout">
+                <svg class="dropdown-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                Sign Out
+              </button>
             </div>
-          </form>
+          </div>
+        </div>
+      </header>
 
-          <!-- Quick Seed Demo Data helper for college presentation -->
-          <div class="demo-seed-box">
-            <span class="demo-seed-text">Evaluating or demonstrating?</span>
-            <button type="button" class="btn btn-link btn-xs" id="btnLoadSampleData">
-              Load Sample Medicines
+      <!-- Scrollable Main View Container -->
+      <main class="content-scroll-container" id="contentContainer">
+
+        <!-- ========================================================
+             VIEW 1: DASHBOARD
+             ======================================================== -->
+        <section class="view-panel active" id="view-dashboard" aria-label="Dashboard">
+          <!-- Personalized Greeting Banner -->
+          <div class="dashboard-greeting-banner">
+            <div class="greeting-text-group">
+              <h1 class="greeting-heading" id="dynamicGreeting">Good morning, Alex 👋</h1>
+              <p class="greeting-subtext">You have <strong id="todayRemainingCount">1 medication</strong> remaining today. Your 7-day adherence is looking strong!</p>
+            </div>
+            <div class="greeting-quick-stats">
+              <span class="pill-badge pill-success"><span class="badge-dot"></span> Regimen Active</span>
+              <span class="pill-badge pill-primary">Refill Supply: Good</span>
+            </div>
+          </div>
+
+          <!-- 4 Summary Metric Cards (Section 6) -->
+          <div class="metrics-grid">
+            <div class="metric-card metric-today">
+              <div class="metric-icon-wrap bg-blue-subtle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2">
+                  <rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect>
+                  <line x1="16" x2="16" y1="2" y2="6"></line>
+                  <line x1="8" x2="8" y1="2" y2="6"></line>
+                  <line x1="3" x2="21" y1="10" y2="10"></line>
+                </svg>
+              </div>
+              <div class="metric-data">
+                <span class="metric-title">Today's Medicines</span>
+                <span class="metric-value" id="summaryTotalMeds">3 scheduled</span>
+                <span class="metric-caption" id="summaryCompletedRatio">2 taken &bull; 1 upcoming</span>
+              </div>
+            </div>
+
+            <div class="metric-card metric-adherence">
+              <div class="metric-icon-wrap bg-green-subtle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+              </div>
+              <div class="metric-data">
+                <span class="metric-title">Adherence Rate</span>
+                <span class="metric-value text-green" id="summaryAdherence">92%</span>
+                <span class="metric-caption">Goal: 90%+ target met</span>
+              </div>
+            </div>
+
+            <div class="metric-card metric-reminder">
+              <div class="metric-icon-wrap bg-teal-subtle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#0F9D8A" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </div>
+              <div class="metric-data">
+                <span class="metric-title">Next Reminder</span>
+                <span class="metric-value text-teal" id="summaryNextReminder">Atorvastatin — 8:00 PM</span>
+                <span class="metric-caption" id="summaryNextReminderDose">20 mg &bull; With Dinner</span>
+              </div>
+            </div>
+
+            <div class="metric-card metric-trend">
+              <div class="metric-icon-wrap bg-navy-subtle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#12304A" stroke-width="2">
+                  <path d="m22 7-8.5 8.5-5-5L2 17"></path>
+                  <path d="M16 7h6v6"></path>
+                </svg>
+              </div>
+              <div class="metric-data">
+                <span class="metric-title">Health Trend</span>
+                <span class="metric-value text-navy">Stable</span>
+                <span class="metric-caption">Zero adverse interactions</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Today's Schedule Table (Section 6) -->
+          <div class="panel-card mt-6">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">Today's Medication Schedule</h3>
+                <p class="panel-subtitle">Sorted chronologically &bull; Real-time status update</p>
+              </div>
+              <div class="panel-actions">
+                <button type="button" class="btn btn-primary btn-sm" id="btnQuickAddMed">
+                  <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  Add Medicine
+                </button>
+                <button type="button" class="btn btn-outline btn-sm" id="btnDashboardScanRx">
+                  <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 7V4h3M20 7V4h-3M4 17v3h3M20 17v3h-3"></path>
+                  </svg>
+                  Scan Prescription
+                </button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="data-table" id="dashboardScheduleTable">
+                <thead>
+                  <tr>
+                    <th>Scheduled Time</th>
+                    <th>Medicine</th>
+                    <th>Strength &amp; Form</th>
+                    <th>Instructions</th>
+                    <th>Status</th>
+                    <th>Quick Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="dashboardScheduleBody">
+                  <!-- Populated by JavaScript -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- AI Health Insights Preview Cards (Section 6 & 4.10) -->
+          <div class="panel-card mt-6">
+            <div class="panel-header">
+              <div class="flex-align-center gap-2">
+                <div class="spark-icon-circle">✨</div>
+                <div>
+                  <h3 class="panel-title">AI Health &amp; Adherence Insights</h3>
+                  <p class="panel-subtitle">Personalized trend analysis across adherence, symptoms, and lifestyle</p>
+                </div>
+              </div>
+              <a href="#health-insights" class="btn btn-ghost btn-sm" data-view="health-insights">View All Insights &rarr;</a>
+            </div>
+
+            <div class="insights-preview-grid" id="dashboardInsightsGrid">
+              <!-- Dynamically populated cards -->
+            </div>
+          </div>
+        </section>
+
+
+        <!-- ========================================================
+             VIEW 2: MY MEDICATIONS & SCHEDULE
+             ======================================================== -->
+        <section class="view-panel" id="view-medications" aria-label="My Medications">
+          <div class="view-header-row">
+            <div>
+              <h2 class="view-heading">Prescribed Medications</h2>
+              <p class="view-subheading">Manage your active schedule, view educational guidance, and log intakes</p>
+            </div>
+            <button type="button" class="btn btn-primary" id="btnOpenAddMedModal">
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Add New Medicine
             </button>
           </div>
-        </div>
-      </section>
 
-      <!-- 3. MEDICINE SCHEDULE & FILTER COLUMN -->
-      <section class="schedule-column" aria-label="Medicine Schedule">
-        <div class="card schedule-card">
-          
-          <div class="schedule-header">
-            <div>
-              <h3 class="card-title">Daily Medicine Schedule</h3>
-              <p class="card-subtitle">Sorted chronologically by dose time</p>
-            </div>
-            <div class="schedule-controls">
-              <!-- Reset all to pending button for testing new day -->
-              <button type="button" class="btn btn-outline btn-xs" id="btnResetDayStatus" title="Reset all statuses to Pending for testing">
-                <svg class="btn-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
-                  <path d="M3 3v5h5"></path>
-                </svg>
-                Reset Day
-              </button>
-            </div>
-          </div>
-
-          <!-- 7. SEARCH & FILTER CONTROLS -->
-          <div class="filter-toolbar">
-            <!-- Search Input -->
-            <div class="search-box">
-              <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <!-- Filter & Search Toolbar -->
+          <div class="med-filter-bar">
+            <div class="search-input-wrap">
+              <svg class="search-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
-              <input type="text" id="searchInput" class="search-input" placeholder="Search by medicine name, dosage, or notes...">
-              <button type="button" id="clearSearchBtn" class="clear-search-btn" title="Clear search" style="display: none;">&times;</button>
+              <input type="text" id="medSearchInput" class="form-input search-box-input" placeholder="Search medicines by name, strength, or note...">
             </div>
 
-            <!-- Filter Status Badges -->
-            <div class="filter-pills" role="tablist">
-              <button type="button" class="filter-pill active" data-filter="all">
-                All (<span id="filterCountAll">0</span>)
+            <div class="filter-pills-row">
+              <button type="button" class="pill-filter-btn active" data-medfilter="all">All (<span id="countPillAll">0</span>)</button>
+              <button type="button" class="pill-filter-btn pill-pending" data-medfilter="pending">Pending (<span id="countPillPending">0</span>)</button>
+              <button type="button" class="pill-filter-btn pill-taken" data-medfilter="taken">Taken (<span id="countPillTaken">0</span>)</button>
+              <button type="button" class="pill-filter-btn pill-skipped" data-medfilter="skipped">Skipped (<span id="countPillSkipped">0</span>)</button>
+            </div>
+          </div>
+
+          <!-- Grid of Medicine Cards -->
+          <div class="medications-cards-grid" id="medicationsCardsContainer">
+            <!-- Populated dynamically with AI Explainer triggers -->
+          </div>
+        </section>
+
+
+        <!-- ========================================================
+             VIEW 3: AI PRESCRIPTION SCANNER (4.3)
+             ======================================================== -->
+        <section class="view-panel" id="view-prescription-scanner" aria-label="Prescription Scanner">
+          <div class="view-header-row">
+            <div>
+              <h2 class="view-heading">AI Prescription Scanner</h2>
+              <p class="view-subheading">Upload a physical prescription or doctor's note for automated OCR extraction</p>
+            </div>
+            <div class="safety-chip-badge">
+              <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Verification Required Before Saving
+            </div>
+          </div>
+
+          <div class="scanner-layout-grid">
+            <!-- Left: Upload & Scanner Zone -->
+            <div class="scanner-upload-card">
+              <div class="upload-dropzone" id="prescriptionDropzone">
+                <input type="file" id="rxFileInput" accept="image/png, image/jpeg, application/pdf" class="file-input-hidden">
+                <div class="dropzone-content">
+                  <div class="scanner-pulse-circle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="17 8 12 3 7 8"></polyline>
+                      <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                  </div>
+                  <h4 class="dropzone-title">Upload Prescription File</h4>
+                  <p class="dropzone-desc">Drag &amp; drop your prescription image (JPG, PNG) or PDF here, or click to browse</p>
+                  <button type="button" class="btn btn-outline btn-sm" id="btnBrowseRxFile">Choose File</button>
+                </div>
+
+                <!-- Scanning Animation Overlay (Hidden initially) -->
+                <div class="scanning-animation-overlay" id="scanningOverlay" style="display: none;">
+                  <div class="scanner-laser-line"></div>
+                  <span class="scanning-status-text">AI Neural OCR Scanning &amp; Parsing Prescription...</span>
+                </div>
+              </div>
+
+              <!-- Quick Demo Samples for College Presentation -->
+              <div class="sample-prescriptions-box">
+                <span class="sample-label">⚡ Evaluating? Try instant realistic sample prescriptions:</span>
+                <div class="sample-buttons-row">
+                  <button type="button" class="btn btn-secondary-soft btn-xs" id="btnSampleRx1">Cardiology &bull; Metformin &amp; Lisinopril</button>
+                  <button type="button" class="btn btn-secondary-soft btn-xs" id="btnSampleRx2">Antibiotic Regimen &bull; Amoxicillin</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Verification & Extracted Data Form -->
+            <div class="scanner-results-card">
+              <div class="results-card-header">
+                <h3 class="panel-title">Extracted Prescription Data</h3>
+                <span class="verification-alert-tag">⚠️ Human Verification Step</span>
+              </div>
+              <p class="text-muted text-sm mb-4">
+                <strong>Important:</strong> MedGuide AI extracted the following fields. Please review and verify every detail against the original paper prescription before saving to your schedule.
+              </p>
+
+              <form id="rxVerificationForm">
+                <div class="form-row-2">
+                  <div class="form-group">
+                    <label class="form-label" for="ocrMedName">Medicine Name <span class="required-star">*</span></label>
+                    <input type="text" id="ocrMedName" class="form-input" placeholder="e.g. Metformin Hydrochloride" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="ocrStrength">Strength / Dosage <span class="required-star">*</span></label>
+                    <input type="text" id="ocrStrength" class="form-input" placeholder="e.g. 500 mg" required>
+                  </div>
+                </div>
+
+                <div class="form-row-3">
+                  <div class="form-group">
+                    <label class="form-label" for="ocrFrequency">Frequency <span class="required-star">*</span></label>
+                    <select id="ocrFrequency" class="form-input">
+                      <option value="Daily">Daily (Once a day)</option>
+                      <option value="Twice Daily">Twice Daily (2 Doses)</option>
+                      <option value="Weekly">Weekly</option>
+                      <option value="Custom">Custom / As Needed</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="ocrTiming">Intake Time <span class="required-star">*</span></label>
+                    <input type="time" id="ocrTiming" class="form-input" value="08:00" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="ocrQuantity">Quantity / Units</label>
+                    <input type="number" id="ocrQuantity" class="form-input" value="30" min="1">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="ocrDuration">Duration &amp; Doctor's Notes</label>
+                  <input type="text" id="ocrDuration" class="form-input" placeholder="e.g. 30 days &bull; Take with meals to minimize gastrointestinal discomfort">
+                </div>
+
+                <div class="verification-checkbox-box">
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="ocrVerifyCheckbox">
+                    <span>I confirm I have verified this extracted information against my physician's original prescription.</span>
+                  </label>
+                </div>
+
+                <div class="form-actions mt-4">
+                  <button type="submit" class="btn btn-primary" id="btnSaveVerifiedRx" disabled>
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    Confirm &amp; Add to Medication Schedule
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- ========================================================
+             VIEW 4: PERSONALIZED DIET PLANNER (4.4)
+             ======================================================== -->
+        <section class="view-panel" id="view-diet-planner" aria-label="Personalized Diet Planner">
+          <div class="view-header-row">
+            <div>
+              <h2 class="view-heading">Personalized General Diet Guidance</h2>
+              <p class="view-subheading">Tailored nutritional plans respecting your health conditions, medications, and regional cuisines</p>
+            </div>
+            <div class="sdg-pill-badge">UN SDG 3 &bull; Nutrition &amp; Adherence</div>
+          </div>
+
+          <!-- User Conditions & Preferences Controls -->
+          <div class="diet-controls-card">
+            <div class="diet-profile-summary">
+              <span class="diet-summary-label">Active Health Profile Constraints:</span>
+              <span class="condition-chip">Type 2 Diabetes (Low Glycemic)</span>
+              <span class="condition-chip">Hypertension (DASH/Low Sodium)</span>
+              <span class="med-tag-chip">Taking: Metformin, Lisinopril</span>
+            </div>
+
+            <div class="diet-selectors-grid">
+              <div class="form-group">
+                <label class="form-label" for="dietCuisine">Regional Cuisine Preference</label>
+                <select id="dietCuisine" class="form-input">
+                  <option value="South Indian">South Indian (Idli, Sambar, Ragi, Steamed Foods)</option>
+                  <option value="North Indian">North Indian (Dal, Roti, Sabzi, Paneer, Curd)</option>
+                  <option value="Mediterranean">Mediterranean (Olive Oil, Greens, Fish, Legumes)</option>
+                  <option value="Asian">Asian (Steamed Greens, Tofu, Brown Rice, Broth)</option>
+                  <option value="Western">Western (Oatmeal, Grilled Poultry, Quinoa, Salad)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="dietPreference">Dietary Style</label>
+                <select id="dietPreference" class="form-input">
+                  <option value="Vegetarian">Vegetarian</option>
+                  <option value="Non-Vegetarian">Non-Vegetarian</option>
+                  <option value="Vegan">Vegan (100% Plant-Based)</option>
+                  <option value="Eggetarian">Eggetarian</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="dietActivityLevel">Daily Activity Level</label>
+                <select id="dietActivityLevel" class="form-input">
+                  <option value="Sedentary">Sedentary (Desk work, light walking)</option>
+                  <option value="Moderate" selected>Moderate (30m daily brisk walk/exercise)</option>
+                  <option value="Active">Active (Strenuous daily movement)</option>
+                </select>
+              </div>
+
+              <div class="form-group flex-align-end">
+                <button type="button" class="btn btn-primary btn-block" id="btnGenerateDiet">
+                  <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+                  </svg>
+                  Generate Plan
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Generated Meal Plan Layout -->
+          <div class="meal-plan-grid" id="mealPlanGrid">
+            <!-- Populated dynamically with Breakfast, Lunch, Snacks, Dinner -->
+          </div>
+
+          <!-- Prefer vs Limit Guidance (Section 4.4) -->
+          <div class="nutrition-guidance-columns mt-6">
+            <div class="guidance-card guidance-prefer">
+              <div class="guidance-header">
+                <div class="guidance-icon text-green">✓</div>
+                <h4 class="guidance-title">Foods to Prioritize</h4>
+              </div>
+              <ul class="guidance-list" id="dietFoodsToPrefer">
+                <!-- Dynamically populated based on conditions -->
+              </ul>
+            </div>
+
+            <div class="guidance-card guidance-limit">
+              <div class="guidance-header">
+                <div class="guidance-icon text-danger">⚠️</div>
+                <h4 class="guidance-title">Foods to Limit or Moderate</h4>
+              </div>
+              <ul class="guidance-list" id="dietFoodsToLimit">
+                <!-- Dynamically populated -->
+              </ul>
+            </div>
+          </div>
+
+          <!-- General Nutrition Advice Note -->
+          <div class="info-callout-box mt-6">
+            <span class="callout-icon">💡</span>
+            <div class="callout-text">
+              <strong>Evidence-Based Nutrition Philosophy:</strong>
+              Meals are structured around balanced macronutrients, complex dietary fiber to prevent blood glucose spikes, and hydration. Specific food restrictions are guided by official chronic condition guidelines (e.g. DASH diet for blood pressure and low glycemic index for diabetes).
+            </div>
+          </div>
+        </section>
+
+
+        <!-- ========================================================
+             VIEW 5: DRUG & FOOD INTERACTION CHECKER (4.5 & 4.6)
+             ======================================================== -->
+        <section class="view-panel" id="view-interactions" aria-label="Interaction Checker">
+          <div class="view-header-row">
+            <div>
+              <h2 class="view-heading">Medication &amp; Dietary Interaction Checker</h2>
+              <p class="view-subheading">Evaluate potential drug–drug and drug–food contraindications using validated clinical databases</p>
+            </div>
+            <div class="safety-chip-badge">Safety Advisory Mode</div>
+          </div>
+
+          <!-- Interaction Type Tabs -->
+          <div class="subtabs-bar">
+            <button type="button" class="subtab-btn active" id="subtabDrugDrug">Drug–Drug Interactions (4.5)</button>
+            <button type="button" class="subtab-btn" id="subtabDrugFood">Drug–Food Interactions (4.6)</button>
+          </div>
+
+          <!-- Tab Content 1: Drug-Drug -->
+          <div class="interaction-tab-panel" id="tabContentDrugDrug">
+            <div class="panel-card mb-6">
+              <h3 class="panel-title mb-2">Select Active Medications to Cross-Check</h3>
+              <p class="text-sm text-muted mb-4">Choose multiple medicines from your active regimen or add common over-the-counter medications to evaluate interaction risks.</p>
+              
+              <div class="drugs-multi-selector" id="drugDrugCheckboxes">
+                <!-- Dynamic drug checkboxes (Metformin, Lisinopril, Atorvastatin, Aspirin, Ibuprofen, etc.) -->
+              </div>
+
+              <div class="mt-4 flex-align-center gap-3">
+                <button type="button" class="btn btn-primary" id="btnCheckDrugDrug">Check Selected Combinations</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="btnSelectAllDrugs">Select All My Medications</button>
+              </div>
+            </div>
+
+            <!-- Interaction Results Container -->
+            <div class="interaction-results-container" id="drugDrugResultsContainer">
+              <!-- Dynamically populated interaction cards -->
+            </div>
+          </div>
+
+          <!-- Tab Content 2: Drug-Food -->
+          <div class="interaction-tab-panel" id="tabContentDrugFood" style="display: none;">
+            <div class="panel-card mb-6">
+              <h3 class="panel-title mb-2">Select Medication and Food/Beverage Item</h3>
+              <p class="text-sm text-muted mb-4">Analyze verified scientific interactions between your prescribed therapies and common foods, citrus, or beverages.</p>
+
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label class="form-label" for="foodCheckMedSelect">Select Medication</label>
+                  <select id="foodCheckMedSelect" class="form-input">
+                    <!-- Populated dynamically -->
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="foodCheckItemSelect">Select Food or Beverage</label>
+                  <select id="foodCheckItemSelect" class="form-input">
+                    <option value="Grapefruit / Grapefruit Juice">Grapefruit / Grapefruit Juice 🍊</option>
+                    <option value="Alcohol / Beer / Wine">Alcohol / Beer / Wine 🍷</option>
+                    <option value="Leafy Greens (Spinach, Kale / Vitamin K)">Leafy Greens (Spinach, Kale / High Vitamin K) 🥬</option>
+                    <option value="Milk / High Calcium Dairy">Milk / High Calcium Dairy 🥛</option>
+                    <option value="Coffee / High Caffeine">Coffee / High Caffeine ☕</option>
+                    <option value="High Sodium / Salt Substitutes (Potassium)">High Sodium / Potassium Salt Substitutes 🧂</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="mt-2">
+                <button type="button" class="btn btn-primary" id="btnCheckDrugFood">Evaluate Drug–Food Interaction</button>
+              </div>
+            </div>
+
+            <div class="interaction-results-container" id="drugFoodResultsContainer">
+              <!-- Dynamically populated drug-food result -->
+            </div>
+          </div>
+        </section>
+
+
+        <!-- ========================================================
+             VIEW 6: SYMPTOM & SIDE-EFFECT TRACKER (4.7)
+             ======================================================== -->
+        <section class="view-panel" id="view-symptoms" aria-label="Symptom Tracker">
+          <div class="view-header-row">
+            <div>
+              <h2 class="view-heading">Symptom &amp; Side-Effect Tracker</h2>
+              <p class="view-subheading">Log daily symptoms and monitor recurring patterns to share with your physician</p>
+            </div>
+          </div>
+
+          <!-- AI Recurring Pattern Alert Banner (Section 4.7) -->
+          <div class="ai-pattern-alert" id="recurringPatternAlert">
+            <div class="alert-icon-ring">⚠️</div>
+            <div class="alert-content-block">
+              <strong class="alert-title">AI Pattern Recognition Advisory:</strong>
+              <p class="alert-body" id="patternAlertBody">
+                “A recurring pattern appears in your records. Consider discussing this pattern with your healthcare professional.”
+              </p>
+            </div>
+          </div>
+
+          <div class="symptom-layout-grid">
+            <!-- Left: Log Form -->
+            <div class="panel-card">
+              <h3 class="panel-title mb-1">Record a Symptom Event</h3>
+              <p class="text-sm text-muted mb-4">Log changes in your well-being or potential medication side-effects.</p>
+
+              <form id="logSymptomForm">
+                <div class="form-group">
+                  <label class="form-label" for="symptomName">Symptom Description <span class="required-star">*</span></label>
+                  <select id="symptomName" class="form-input" required>
+                    <option value="Fatigue / Low Energy">Fatigue / Low Energy</option>
+                    <option value="Mild Dizziness">Mild Dizziness</option>
+                    <option value="Headache">Headache</option>
+                    <option value="Nausea / Stomach Upset">Nausea / Stomach Upset</option>
+                    <option value="Muscle Ache">Muscle Ache</option>
+                    <option value="Dry Cough">Dry Cough</option>
+                    <option value="Sleep Disturbance">Sleep Disturbance</option>
+                    <option value="Other">Other (Custom)</option>
+                  </select>
+                </div>
+
+                <div class="form-row-2">
+                  <div class="form-group">
+                    <label class="form-label" for="symptomDate">Date</label>
+                    <input type="date" id="symptomDate" class="form-input" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="symptomTime">Time</label>
+                    <input type="time" id="symptomTime" class="form-input" required>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">
+                    Severity Level (1 to 5): <strong id="severityDisplayVal" class="text-primary">3 — Moderate</strong>
+                  </label>
+                  <input type="range" id="symptomSeverity" min="1" max="5" value="3" class="severity-slider">
+                  <div class="severity-labels-row">
+                    <span>1: Minimal</span>
+                    <span>2: Mild</span>
+                    <span>3: Moderate</span>
+                    <span>4: Severe</span>
+                    <span>5: Very Intense</span>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="symptomRelatedMed">Medicine Taken Around This Time</label>
+                  <select id="symptomRelatedMed" class="form-input">
+                    <!-- Populated dynamically -->
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="symptomNotes">Additional Notes</label>
+                  <textarea id="symptomNotes" class="form-input" rows="2" placeholder="e.g. Occurred 45 minutes after taking evening pill with water..."></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block">Log Symptom Entry</button>
+              </form>
+            </div>
+
+            <!-- Right: Symptom Trends & Chart -->
+            <div class="panel-card">
+              <div class="panel-header">
+                <div>
+                  <h3 class="panel-title">Symptom Severity Trends</h3>
+                  <p class="panel-subtitle">Weekly average severity tracking over the past 4 weeks</p>
+                </div>
+              </div>
+
+              <!-- Canvas Chart for Symptom Trends -->
+              <div class="chart-wrapper">
+                <canvas id="symptomTrendChart" height="200"></canvas>
+              </div>
+
+              <!-- Recent Symptom Log History -->
+              <div class="mt-4">
+                <h4 class="text-sm font-bold text-navy mb-2">Recent Symptom Records</h4>
+                <div class="table-responsive">
+                  <table class="data-table data-table-sm" id="symptomLogTable">
+                    <thead>
+                      <tr>
+                        <th>Date &amp; Time</th>
+                        <th>Symptom</th>
+                        <th>Severity</th>
+                        <th>Medication Around Time</th>
+                      </tr>
+                    </thead>
+                    <tbody id="symptomLogBody">
+                      <!-- Populated dynamically -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- ========================================================
+             VIEW 7: MEDICATION ADHERENCE DASHBOARD (4.8)
+             ======================================================== -->
+        <section class="view-panel" id="view-adherence" aria-label="Adherence Dashboard">
+          <div class="view-header-row">
+            <div>
+              <h2 class="view-heading">Medication Adherence Analytics</h2>
+              <p class="view-subheading">Track intake consistency, identify missed dose patterns, and monitor monthly adherence</p>
+            </div>
+            <div class="adherence-goal-pill">Target: &gt; 90% Adherence</div>
+          </div>
+
+          <!-- 4 Stat Summary Cards (Section 4.8) -->
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-icon-wrap bg-green-subtle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+              </div>
+              <div class="metric-data">
+                <span class="metric-title">Overall Adherence</span>
+                <span class="metric-value text-green" id="adhOverallPercent">92%</span>
+                <span class="metric-caption">Last 30 days active</span>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon-wrap bg-blue-subtle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </div>
+              <div class="metric-data">
+                <span class="metric-title">Doses Taken</span>
+                <span class="metric-value" id="adhTakenCount">84</span>
+                <span class="metric-caption">On-time intake</span>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon-wrap bg-danger-subtle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </div>
+              <div class="metric-data">
+                <span class="metric-title">Doses Missed / Skipped</span>
+                <span class="metric-value text-danger" id="adhMissedCount">5</span>
+                <span class="metric-caption">Recorded missed doses</span>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon-wrap bg-warning-subtle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </div>
+              <div class="metric-data">
+                <span class="metric-title">Delayed Doses</span>
+                <span class="metric-value text-warning" id="adhDelayedCount">2</span>
+                <span class="metric-caption">&gt; 1 hr past reminder</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts Row: Weekly Bar Chart & Medication-Wise Breakdown -->
+          <div class="adherence-charts-row mt-6">
+            <div class="panel-card chart-card-left">
+              <h3 class="panel-title mb-1">Weekly Adherence Trend</h3>
+              <p class="panel-subtitle mb-4">Adherence percentage recorded each day this week</p>
+              <div class="chart-wrapper">
+                <canvas id="weeklyAdherenceChart" height="220"></canvas>
+              </div>
+            </div>
+
+            <div class="panel-card chart-card-right">
+              <h3 class="panel-title mb-1">Medication-Wise Adherence</h3>
+              <p class="panel-subtitle mb-4">Consistency breakdown per prescribed medicine</p>
+              <div class="med-adherence-list" id="medWiseAdherenceList">
+                <!-- Populated dynamically with progress bars -->
+              </div>
+            </div>
+          </div>
+
+          <!-- 30-Day Adherence Calendar View (Section 4.8) -->
+          <div class="panel-card mt-6">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">Monthly Adherence Calendar Heatmap</h3>
+                <p class="panel-subtitle">Color-coded daily adherence indicators for current month</p>
+              </div>
+              <div class="calendar-legend">
+                <span class="legend-item"><span class="legend-dot dot-green"></span> 100% Taken</span>
+                <span class="legend-item"><span class="legend-dot dot-yellow"></span> Partial</span>
+                <span class="legend-item"><span class="legend-dot dot-red"></span> Missed Dose</span>
+              </div>
+            </div>
+
+            <div class="calendar-heatmap-grid" id="adherenceCalendarGrid">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </section>
+
+
+        <!-- ========================================================
+             VIEW 8: AI HEALTH INSIGHTS (4.10)
+             ======================================================== -->
+        <section class="view-panel" id="view-health-insights" aria-label="AI Health Insights">
+          <div class="view-header-row">
+            <div>
+              <h2 class="view-heading">AI Health &amp; Wellness Insights</h2>
+              <p class="view-subheading">Intelligent analysis correlating adherence, activity, sleep, and logged symptoms</p>
+            </div>
+            <div class="spark-badge">Engine: Clinical Pattern Analyzer</div>
+          </div>
+
+          <div class="insights-filter-tabs">
+            <button type="button" class="subtab-btn active" data-insightfilter="all">All Insights</button>
+            <button type="button" class="subtab-btn" data-insightfilter="adherence">Adherence Trends</button>
+            <button type="button" class="subtab-btn" data-insightfilter="symptom">Symptom Correlations</button>
+            <button type="button" class="subtab-btn" data-insightfilter="lifestyle">Lifestyle &amp; Diet</button>
+          </div>
+
+          <!-- Insights Cards Container -->
+          <div class="insights-full-grid" id="insightsFullContainer">
+            <!-- Populated dynamically by HealthInsightService -->
+          </div>
+
+          <!-- Non-Diagnosis Disclaimer -->
+          <div class="safety-banner mt-6">
+            <div class="safety-icon">⚠️</div>
+            <div class="safety-content">
+              <strong>Clinical Guardrail Notice:</strong>
+              MedGuide AI health insights identify statistical trends in your self-recorded logs. They do not formulate clinical diagnoses, establish disease probability, or substitute for physician evaluation. Always present these logs to your doctor.
+            </div>
+          </div>
+        </section>
+
+
+        <!-- ========================================================
+             VIEW 9: SMART REFILL TRACKER (4.9)
+             ======================================================== -->
+        <section class="view-panel" id="view-refill-tracker" aria-label="Refill Tracker">
+          <div class="view-header-row">
+            <div>
+              <h2 class="view-heading">Smart Medication Refill Tracker</h2>
+              <p class="view-subheading">Automatically monitors pill inventory depletion and alerts you before medicines run out</p>
+            </div>
+          </div>
+
+          <!-- Refill Critical Alert (if low) -->
+          <div class="refill-alert-banner" id="refillAlertBanner">
+            <div class="alert-icon-ring">💊</div>
+            <div class="alert-text">
+              <strong class="alert-title">Prescription Supply Advisory:</strong>
+              <p class="alert-body" id="refillAlertText">
+                “Your recorded medication supply may run low soon. Metformin has only 10 tablets remaining (estimated 5 days of supply).”
+              </p>
+            </div>
+          </div>
+
+          <!-- Refill Inventory Table -->
+          <div class="panel-card mt-6">
+            <div class="panel-header">
+              <h3 class="panel-title">Current Prescription Inventory</h3>
+              <span class="text-sm text-muted">Depleted with each recorded dose</span>
+            </div>
+
+            <div class="table-responsive">
+              <table class="data-table" id="refillInventoryTable">
+                <thead>
+                  <tr>
+                    <th>Medicine</th>
+                    <th>Prescribed Daily Intake</th>
+                    <th>Remaining Supply</th>
+                    <th>Estimated Days Left</th>
+                    <th>Inventory Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="refillInventoryBody">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- ========================================================
+             VIEW 10: CAREGIVER SUPPORT (4.11)
+             ======================================================== -->
+        <section class="view-panel" id="view-caregiver" aria-label="Caregiver Support">
+          <div class="view-header-row">
+            <div>
+              <h2 class="view-heading">Caregiver Collaboration &amp; Support</h2>
+              <p class="view-subheading">Keep trusted family members informed while retaining full privacy and consent control</p>
+            </div>
+            <span class="consent-lock-badge">🔒 Explicit Consent Required</span>
+          </div>
+
+          <div class="caregiver-layout-grid">
+            <!-- Caregiver Contact Card -->
+            <div class="panel-card">
+              <div class="caregiver-profile-head">
+                <div class="caregiver-avatar">SJ</div>
+                <div class="caregiver-meta">
+                  <h3 class="caregiver-name">Sarah Johnson</h3>
+                  <span class="caregiver-relation">Daughter &bull; Primary Emergency Contact</span>
+                  <span class="caregiver-contact">sarah.j@example.com &bull; (555) 234-5678</span>
+                </div>
+              </div>
+
+              <div class="caregiver-status-row mt-4">
+                <span class="status-indicator-badge status-active">● Active Connection</span>
+                <span class="text-xs text-muted">Last sync: Today at 08:30 AM</span>
+              </div>
+
+              <!-- Simulated Alert Trigger -->
+              <div class="mt-6 pt-4 border-t">
+                <h4 class="text-sm font-bold text-navy mb-2">Simulate Caregiver Missed-Dose Notification</h4>
+                <p class="text-xs text-muted mb-3">Demonstrates automated escalation dispatch when 2 consecutive doses are missed.</p>
+                <button type="button" class="btn btn-warning btn-sm" id="btnTestCaregiverAlert">
+                  Send Simulated Caregiver Alert
+                </button>
+              </div>
+            </div>
+
+            <!-- Granular Consent & Permission Toggles (Section 4.11) -->
+            <div class="panel-card">
+              <h3 class="panel-title mb-2">Privacy &amp; Sharing Permissions</h3>
+              <p class="text-sm text-muted mb-4">Toggle exactly what health data is shared with your designated caregiver:</p>
+
+              <div class="permission-toggles-list">
+                <label class="toggle-control-item">
+                  <div class="toggle-text">
+                    <strong>Notify caregiver after repeated missed-dose confirmations</strong>
+                    <p class="text-xs text-muted">Sends automated SMS/push notification if a scheduled dose is missed twice.</p>
+                  </div>
+                  <input type="checkbox" id="permMissedDose" checked class="switch-input">
+                </label>
+
+                <label class="toggle-control-item">
+                  <div class="toggle-text">
+                    <strong>Share medication adherence score</strong>
+                    <p class="text-xs text-muted">Allows caregiver to view your weekly adherence percentage.</p>
+                  </div>
+                  <input type="checkbox" id="permAdherence" checked class="switch-input">
+                </label>
+
+                <label class="toggle-control-item">
+                  <div class="toggle-text">
+                    <strong>Share active medication list</strong>
+                    <p class="text-xs text-muted">Provides a read-only list of current prescriptions and instructions.</p>
+                  </div>
+                  <input type="checkbox" id="permMedList" checked class="switch-input">
+                </label>
+
+                <label class="toggle-control-item">
+                  <div class="toggle-text">
+                    <strong>Share logged symptom trends</strong>
+                    <p class="text-xs text-muted">Permits caregiver to view recorded symptom severity notes.</p>
+                  </div>
+                  <input type="checkbox" id="permSymptoms" class="switch-input">
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- ========================================================
+             VIEW 11: EMERGENCY HEALTH CARD (4.12)
+             ======================================================== -->
+        <section class="view-panel" id="view-emergency-card" aria-label="Emergency Card">
+          <div class="view-header-row">
+            <div>
+              <h2 class="view-heading">Digital Emergency Medical ID Card</h2>
+              <p class="view-subheading">Instantly accessible medical summary designed for first responders and emergency personnel</p>
+            </div>
+            <div class="flex-align-center gap-2">
+              <button type="button" class="btn btn-outline btn-sm" id="btnPrintEmergencyCard">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                  <rect width="12" height="8" x="6" y="14"></rect>
+                </svg>
+                Print Card
               </button>
-              <button type="button" class="filter-pill filter-pending" data-filter="pending">
-                Pending (<span id="filterCountPending">0</span>)
-              </button>
-              <button type="button" class="filter-pill filter-taken" data-filter="taken">
-                Taken (<span id="filterCountTaken">0</span>)
-              </button>
-              <button type="button" class="filter-pill filter-skipped" data-filter="skipped">
-                Skipped (<span id="filterCountSkipped">0</span>)
+              <button type="button" class="btn btn-primary btn-sm" id="btnDownloadEmergencyCard">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Download PDF
               </button>
             </div>
           </div>
 
-          <!-- Medicine Cards Container -->
-          <div id="medicineList" class="medicine-list" aria-live="polite">
-            <!-- Dynamically populated cards -->
-          </div>
-
-          <!-- Empty State Container -->
-          <div id="emptyScheduleState" class="empty-state" style="display: none;">
-            <div class="empty-icon-wrap">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
-              </svg>
+          <!-- Printable & Mobile-Friendly Emergency Card Container -->
+          <div class="emergency-card-wrapper" id="printableEmergencyCard">
+            <div class="emergency-card-header">
+              <div class="emergency-badge-title">
+                <span class="emergency-cross">✚</span>
+                <span>EMERGENCY MEDICAL INFORMATION &bull; ICE</span>
+              </div>
+              <span class="emergency-confidential">Patient-Authorized Summary</span>
             </div>
-            <h4 class="empty-title" id="emptyStateTitle">No Medicines Scheduled</h4>
-            <p class="empty-desc" id="emptyStateDesc">Add your first medicine using the form on the left or load sample data to explore MedTrack.</p>
+
+            <div class="emergency-card-body">
+              <div class="emergency-primary-row">
+                <div>
+                  <h3 class="patient-emergency-name" id="emCardName">Alex Johnson</h3>
+                  <div class="patient-emergency-demographics">
+                    <span>Age: <strong id="emCardAge">52</strong></span> &bull; 
+                    <span>Blood Group: <strong id="emCardBlood">O+ (Positive)</strong></span> &bull; 
+                    <span>Sex: <strong>Male</strong></span>
+                  </div>
+                </div>
+                <!-- Dynamic QR Code Container -->
+                <div class="emergency-qr-box" title="Scan for Authorized Emergency Medical Summary">
+                  <div id="emergencyQrCodeSvg" class="qr-svg-wrapper">
+                    <!-- Pure JS generated QR code SVG -->
+                  </div>
+                  <span class="qr-subtext">Scan for Medical ID</span>
+                </div>
+              </div>
+
+              <div class="emergency-data-grid mt-4">
+                <div class="emergency-data-col">
+                  <h4 class="emergency-col-title text-danger">⚠️ Known Allergies</h4>
+                  <ul class="emergency-list text-danger-dark" id="emCardAllergies">
+                    <li>Penicillin (Severe Rash / Anaphylactoid risk)</li>
+                    <li>Shellfish (Moderate Urticaria)</li>
+                  </ul>
+                </div>
+
+                <div class="emergency-data-col">
+                  <h4 class="emergency-col-title text-navy">🏥 Chronic Conditions</h4>
+                  <ul class="emergency-list" id="emCardConditions">
+                    <li>Type 2 Diabetes Mellitus (E11.9)</li>
+                    <li>Essential Primary Hypertension (I10)</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div class="emergency-meds-section mt-4">
+                <h4 class="emergency-col-title">💊 Current Prescribed Medications</h4>
+                <div class="table-responsive">
+                  <table class="data-table data-table-sm" id="emCardMedsTable">
+                    <thead>
+                      <tr>
+                        <th>Medication</th>
+                        <th>Dosage</th>
+                        <th>Schedule</th>
+                      </tr>
+                    </thead>
+                    <tbody id="emCardMedsBody">
+                      <!-- Populated dynamically -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="emergency-contacts-row mt-4">
+                <div class="contact-box">
+                  <span class="contact-role">Primary Emergency Contact (Family)</span>
+                  <strong class="contact-name">Sarah Johnson (Daughter)</strong>
+                  <span class="contact-phone">Phone: (555) 234-5678</span>
+                </div>
+                <div class="contact-box">
+                  <span class="contact-role">Primary Attending Physician</span>
+                  <strong class="contact-name">Dr. Robert Vance, MD (Cardiology)</strong>
+                  <span class="contact-phone">Clinic: (555) 987-6543</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="emergency-card-footer">
+              <span>MedGuide AI Medical ID &bull; Authorized by Patient</span>
+              <span>In emergency, call local EMS (911 / 112)</span>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- ========================================================
+             VIEW 12: HEALTH PROFILE (4.14 / 9)
+             ======================================================== -->
+        <section class="view-panel" id="view-health-profile" aria-label="Health Profile">
+          <div class="view-header-row">
+            <div>
+              <h2 class="view-heading">Patient Health Profile &amp; Biometrics</h2>
+              <p class="view-subheading">Personal baseline metrics used by AI services to tailor interactions and diet</p>
+            </div>
           </div>
 
+          <div class="profile-layout-grid">
+            <div class="panel-card">
+              <h3 class="panel-title mb-4">Personal Demographics &amp; Biometrics</h3>
+              <form id="healthProfileForm">
+                <div class="form-row-2">
+                  <div class="form-group">
+                    <label class="form-label" for="profileName">Full Name</label>
+                    <input type="text" id="profileName" class="form-input" value="Alex Johnson" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="profileAge">Age</label>
+                    <input type="number" id="profileAge" class="form-input" value="52" min="1" max="120" required>
+                  </div>
+                </div>
+
+                <div class="form-row-3">
+                  <div class="form-group">
+                    <label class="form-label" for="profileGender">Gender / Sex</label>
+                    <select id="profileGender" class="form-input">
+                      <option value="Male" selected>Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other / Prefer not to specify</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="profileHeight">Height (cm)</label>
+                    <input type="number" id="profileHeight" class="form-input" value="176">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="profileWeight">Weight (kg)</label>
+                    <input type="number" id="profileWeight" class="form-input" value="81">
+                  </div>
+                </div>
+
+                <div class="form-row-2">
+                  <div class="form-group">
+                    <label class="form-label" for="profileBlood">Blood Type</label>
+                    <select id="profileBlood" class="form-input">
+                      <option value="O+" selected>O+ (Positive)</option>
+                      <option value="O-">O- (Negative)</option>
+                      <option value="A+">A+ (Positive)</option>
+                      <option value="A-">A- (Negative)</option>
+                      <option value="B+">B+ (Positive)</option>
+                      <option value="B-">B- (Negative)</option>
+                      <option value="AB+">AB+ (Positive)</option>
+                      <option value="AB-">AB- (Negative)</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="profileSleep">Average Nightly Sleep</label>
+                    <input type="text" id="profileSleep" class="form-input" value="7.2 hours">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="profileConditions">Diagnosed Chronic Conditions</label>
+                  <textarea id="profileConditions" class="form-input" rows="2">Type 2 Diabetes Mellitus, Essential Primary Hypertension</textarea>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="profileAllergies">Drug &amp; Food Allergies</label>
+                  <textarea id="profileAllergies" class="form-input" rows="2">Penicillin (Severe Rash), Shellfish</textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Save Profile Updates</button>
+              </form>
+            </div>
+
+            <!-- Health Summary & BMI Card -->
+            <div class="panel-card flex-col-between">
+              <div>
+                <h3 class="panel-title mb-4">Calculated Health Index</h3>
+                <div class="bmi-display-box">
+                  <span class="bmi-label">Body Mass Index (BMI)</span>
+                  <span class="bmi-number" id="profileBmiVal">26.1</span>
+                  <span class="bmi-status-tag tag-warning">Overweight (Target: 22–24)</span>
+                </div>
+
+                <div class="adherence-stat-snippet mt-4">
+                  <span class="text-xs text-muted text-uppercase font-bold">Overall Medication Compliance</span>
+                  <div class="progress-bar-wrapper mt-1">
+                    <div class="progress-bar-fill bg-green" style="width: 92%;"></div>
+                  </div>
+                  <span class="text-xs text-muted mt-1 block">92% adherence across 3 chronic prescriptions</span>
+                </div>
+              </div>
+
+              <!-- Reset Demo Data -->
+              <div class="pt-4 border-t mt-4">
+                <span class="text-xs text-muted block mb-2">College CSE Demonstration Controls:</span>
+                <button type="button" class="btn btn-outline btn-xs" id="btnResetDemoData">
+                  Restore Alex Johnson Demo Data
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- ========================================================
+             VIEW 13: SETTINGS & DISCLAIMERS (Section 13)
+             ======================================================== -->
+        <section class="view-panel" id="view-settings" aria-label="Settings">
+          <div class="view-header-row">
+            <div>
+              <h2 class="view-heading">Application Settings &amp; Clinical Safety</h2>
+              <p class="view-subheading">Configure notification preferences, sound synthesizers, and review legal medical disclaimers</p>
+            </div>
+          </div>
+
+          <div class="settings-grid">
+            <div class="panel-card">
+              <h3 class="panel-title mb-4">Reminder &amp; Audio Preferences</h3>
+              
+              <div class="settings-item-row">
+                <div>
+                  <strong>In-Page Audio Chimes</strong>
+                  <p class="text-xs text-muted">Play Web Audio API synthetic chime when reminder pops up</p>
+                </div>
+                <input type="checkbox" id="settingSoundChime" checked class="switch-input">
+              </div>
+
+              <div class="settings-item-row">
+                <div>
+                  <strong>Browser Push Notifications</strong>
+                  <p class="text-xs text-muted">Allow system notification toasts even if tab is in background</p>
+                </div>
+                <button type="button" class="btn btn-outline btn-xs" id="btnRequestBrowserNotif">Enable</button>
+              </div>
+
+              <div class="settings-item-row">
+                <div>
+                  <strong>Speech Synthesis for Voice Assistant</strong>
+                  <p class="text-xs text-muted">Read answers aloud using native SpeechSynthesis</p>
+                </div>
+                <input type="checkbox" id="settingSpeechVoice" checked class="switch-input">
+              </div>
+            </div>
+
+            <div class="panel-card">
+              <h3 class="panel-title mb-4">Mandatory Medical Safety Notice</h3>
+              <div class="official-safety-statement">
+                <p class="text-sm font-semibold text-navy mb-2">MedGuide AI Safety Protocol &bull; Section 13 Alignment</p>
+                <p class="text-sm text-secondary mb-3">
+                  <strong>MedGuide AI provides educational and medication-management support. It does not diagnose medical conditions, prescribe medication, or replace advice from doctors, pharmacists, or dietitians.</strong>
+                </p>
+                <ul class="safety-principles-list">
+                  <li>Never alters prescribed medication dosages.</li>
+                  <li>Never recommends stopping, starting, or changing a physician's prescription.</li>
+                  <li>Does not fabricate interactions; relies strictly on vetted pharmacological data.</li>
+                  <li>Uses qualified phrases like <em>“Generally used for…”</em> and <em>“Consider discussing this with your doctor.”</em></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+
+      <!-- Global App Footer -->
+      <footer class="app-global-footer">
+        <div class="footer-safety-line">
+          <svg class="footer-safety-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+          <span><strong>Medical Disclaimer:</strong> MedGuide AI provides educational and medication-management support. It does not diagnose medical conditions, prescribe medication, or replace advice from doctors, pharmacists, or dietitians.</span>
         </div>
-
-        <!-- 6. HISTORY SECTION -->
-        <div class="card history-card" id="historySection">
-          <div class="card-header history-header">
-            <div class="card-title-icon history-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 6 12 12 14 14"></polyline>
-                <path d="M3 12a9 9 0 0 1 9-9 9 9 0 0 1 6.36 2.64"></path>
-              </svg>
-            </div>
-            <div class="history-title-wrap">
-              <h3 class="card-title">Medication Intake History</h3>
-              <p class="card-subtitle">Log of taken and skipped medication events</p>
-            </div>
-            <div class="history-actions">
-              <button type="button" class="btn btn-outline btn-xs" id="btnClearHistory" title="Clear intake history">
-                Clear Log
-              </button>
-            </div>
-          </div>
-
-          <div class="history-table-container">
-            <table class="history-table" id="historyTable">
-              <thead>
-                <tr>
-                  <th>Medicine</th>
-                  <th>Dosage</th>
-                  <th>Scheduled Time</th>
-                  <th>Action &amp; Logged At</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody id="historyTableBody">
-                <!-- Dynamically populated history entries -->
-              </tbody>
-            </table>
-          </div>
-
-          <div id="emptyHistoryState" class="empty-history-message">
-            No medication events recorded yet today. When you mark medicines as Taken or Skipped, they will appear here.
-          </div>
+        <div class="footer-sdg-row">
+          <span>UN Sustainable Development Goal 3: Good Health and Well-Being &bull; Final Year CSE Project</span>
+          <span class="text-muted">Pure Localhost Execution &bull; Persistent Offline Architecture</span>
         </div>
-
-      </section>
+      </footer>
 
     </div>
+  </div>
 
-    <!-- 11. SAFETY NOTICE & SDG 3 BANNER -->
-    <footer class="app-footer">
-      <div class="safety-banner">
-        <div class="safety-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
-            <line x1="12" y1="9" x2="12" y2="13"></line>
-            <line x1="12" y1="17" x2="12.01" y2="17"></line>
-          </svg>
-        </div>
-        <div class="safety-content">
-          <strong>Important Safety Notice:</strong>
-          This application is a medication reminder and organization tool. It does not provide medical diagnosis or replace professional medical advice. Always consult your qualified healthcare practitioner regarding your medical regimen.
-        </div>
+
+  <!-- ========================================================
+       MODAL 1: ADD NEW MEDICINE MODAL
+       ======================================================== -->
+  <div class="modal-backdrop" id="addMedModal" style="display: none;">
+    <div class="modal-dialog modal-dialog-md">
+      <div class="modal-header">
+        <h3 class="modal-title">Add Prescribed Medication</h3>
+        <button type="button" class="modal-close-btn" id="closeAddMedModal">&times;</button>
       </div>
-      
-      <div class="footer-attribution">
-        <div class="sdg-attribution">
-          <span class="sdg-pill">UN SDG 3</span> <strong>Good Health and Well-Being</strong> &bull; Promoting timely medication adherence and preventing health complications.
+      <form id="addMedModalForm">
+        <div class="modal-body">
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label" for="formMedName">Medicine Name <span class="required-star">*</span></label>
+              <input type="text" id="formMedName" class="form-input" placeholder="e.g. Metformin, Lisinopril" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="formMedStrength">Strength / Dosage <span class="required-star">*</span></label>
+              <input type="text" id="formMedStrength" class="form-input" placeholder="e.g. 500 mg, 1 tablet" required>
+            </div>
+          </div>
+
+          <div class="form-row-3">
+            <div class="form-group">
+              <label class="form-label" for="formMedCategory">Form</label>
+              <select id="formMedCategory" class="form-input">
+                <option value="Tablet">Tablet 💊</option>
+                <option value="Capsule">Capsule 💊</option>
+                <option value="Syrup">Syrup 🧴</option>
+                <option value="Injection">Injection 💉</option>
+                <option value="Drops">Drops 💧</option>
+                <option value="Inhaler">Inhaler 🫁</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="formMedFrequency">Frequency</label>
+              <select id="formMedFrequency" class="form-input">
+                <option value="Daily">Daily</option>
+                <option value="Twice Daily">Twice Daily</option>
+                <option value="Weekly">Weekly</option>
+                <option value="Custom">Custom</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="formMedTime">Time <span class="required-star">*</span></label>
+              <input type="time" id="formMedTime" class="form-input" value="08:00" required>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label" for="formMedQuantity">Total Quantity / Pill Count</label>
+              <input type="number" id="formMedQuantity" class="form-input" value="30" min="1">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="formMedRefillThreshold">Refill Alert At (Tablets)</label>
+              <input type="number" id="formMedRefillThreshold" class="form-input" value="7" min="1">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="formMedNotes">Prescribed Instructions &amp; Dietary Guidance</label>
+            <textarea id="formMedNotes" class="form-input" rows="2" placeholder="e.g. Take with food. Do not skip evening dose."></textarea>
+          </div>
         </div>
-        <p class="project-tag">College CSE Departmental Project &bull; Built with pure HTML5, CSS3 &amp; Vanilla JavaScript (LocalStorage Powered)</p>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" id="cancelAddMedModal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Schedule Medicine</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ========================================================
+       MODAL 2: AI MEDICINE EXPLAINER MODAL (4.2)
+       ======================================================== -->
+  <div class="modal-backdrop" id="medicineExplainerModal" style="display: none;">
+    <div class="modal-dialog modal-dialog-lg">
+      <div class="modal-header">
+        <div class="flex-align-center gap-2">
+          <span class="ai-spark-tag">AI Medicine Explainer</span>
+          <h3 class="modal-title" id="explainerTitle">Metformin 500 mg</h3>
+        </div>
+        <button type="button" class="modal-close-btn" id="closeExplainerModal">&times;</button>
       </div>
-    </footer>
+      <div class="modal-body explainer-body-scroll" id="explainerContent">
+        <!-- Dynamically populated educational sections (Section 4.2) -->
+      </div>
+      <div class="modal-footer">
+        <span class="text-xs text-muted flex-1">Educational overview. Discuss personalized questions with your pharmacist.</span>
+        <button type="button" class="btn btn-primary btn-sm" id="btnDoneExplainer">Understood</button>
+      </div>
+    </div>
+  </div>
 
-  </main>
 
-  <!-- 4. IN-PAGE REMINDER MODAL -->
-  <div class="modal-backdrop" id="reminderModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="modalMedName" style="display: none;">
-    <div class="modal-content reminder-modal">
-      <div class="modal-bell-animation">
-        <svg class="modal-bell-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+  <!-- ========================================================
+       MODAL 3: IN-PAGE SCHEDULED DOSE REMINDER POPUP (4.1)
+       ======================================================== -->
+  <div class="modal-backdrop" id="reminderModalBackdrop" style="display: none;">
+    <div class="modal-dialog modal-dialog-reminder">
+      <div class="reminder-bell-ring">
+        <svg class="bell-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
           <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
         </svg>
-        <span class="modal-ping-ring"></span>
+        <span class="bell-ring-pulse"></span>
       </div>
 
-      <div class="modal-badge">Scheduled Dose Reminder</div>
-      <h3 class="modal-title" id="modalMedName">Medicine Name</h3>
-      
-      <div class="modal-details-grid">
-        <div class="modal-detail-item">
-          <span class="detail-label">Dosage:</span>
-          <span class="detail-value" id="modalMedDosage">--</span>
-        </div>
-        <div class="modal-detail-item">
-          <span class="detail-label">Scheduled Time:</span>
-          <span class="detail-value" id="modalMedTime">--</span>
-        </div>
-        <div class="modal-detail-item">
-          <span class="detail-label">Frequency:</span>
-          <span class="detail-value" id="modalMedFrequency">Daily</span>
-        </div>
+      <span class="reminder-tag">Medication Reminder Alert</span>
+      <h3 class="reminder-medicine-title" id="reminderMedName">Metformin Hydrochloride</h3>
+
+      <div class="reminder-details-pill-row">
+        <span class="rem-pill">Dose: <strong id="reminderMedDosage">500 mg (1 tablet)</strong></span>
+        <span class="rem-pill">Scheduled: <strong id="reminderMedTime">08:00 AM</strong></span>
       </div>
 
-      <div class="modal-instructions" id="modalMedNotesWrap">
-        <strong>Instructions / Notes:</strong>
-        <p id="modalMedNotes">Take with a full glass of water after food.</p>
+      <div class="reminder-instruction-box" id="reminderInstructionBox">
+        <strong>Instructions:</strong>
+        <p id="reminderMedNotes">Take with breakfast. Drink a full glass of water.</p>
       </div>
 
-      <div class="modal-actions">
-        <button type="button" class="btn btn-success btn-lg" id="modalBtnTaken">
+      <div class="reminder-actions-row">
+        <button type="button" class="btn btn-success btn-lg" id="reminderBtnTaken">
           <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>
           Mark as Taken
         </button>
-        <button type="button" class="btn btn-outline btn-lg" id="modalBtnSnooze">
-          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
-          Snooze 5 Mins
-        </button>
-        <button type="button" class="btn btn-ghost btn-lg" id="modalBtnDismiss">
-          Dismiss
-        </button>
+        <button type="button" class="btn btn-outline" id="reminderBtnSnooze">Snooze (5m)</button>
+        <button type="button" class="btn btn-danger-soft" id="reminderBtnSkip">Mark as Skipped</button>
+        <button type="button" class="btn btn-ghost" id="reminderBtnDismiss">Dismiss</button>
       </div>
     </div>
   </div>
 
-  <!-- Toast Notification System for feedback -->
+
+  <!-- ========================================================
+       MODAL 4: INTERACTIVE VOICE ASSISTANT (4.13)
+       ======================================================== -->
+  <div class="modal-backdrop" id="voiceAssistantModal" style="display: none;">
+    <div class="modal-dialog modal-dialog-md">
+      <div class="modal-header">
+        <div class="flex-align-center gap-2">
+          <div class="spark-icon-circle">🎙️</div>
+          <div>
+            <h3 class="modal-title">MedGuide Voice Assistant</h3>
+            <span class="text-xs text-muted">Educational Speech &amp; Schedule Q&amp;A</span>
+          </div>
+        </div>
+        <button type="button" class="modal-close-btn" id="closeVoiceAssistantModal">&times;</button>
+      </div>
+
+      <div class="voice-assistant-body">
+        <!-- Interactive Mic Sphere -->
+        <div class="voice-mic-container">
+          <button type="button" class="voice-mic-sphere" id="btnToggleVoiceListen" title="Click to speak">
+            <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <line x1="12" y1="19" x2="12" y2="23"></line>
+              <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+          </button>
+          <span class="voice-status-label" id="voiceStatusLabel">Click microphone or choose a question below</span>
+        </div>
+
+        <!-- Quick Question Prompts (Section 4.13) -->
+        <div class="voice-prompts-section">
+          <span class="voice-prompts-title">Sample Voice Prompts:</span>
+          <div class="voice-prompts-grid">
+            <button type="button" class="btn-voice-prompt" data-prompt="What medicine do I take now?">
+              “What medicine do I take now?”
+            </button>
+            <button type="button" class="btn-voice-prompt" data-prompt="What is this medicine used for?">
+              “What is this medicine used for?”
+            </button>
+            <button type="button" class="btn-voice-prompt" data-prompt="Show my medication schedule.">
+              “Show my medication schedule.”
+            </button>
+            <button type="button" class="btn-voice-prompt" data-prompt="What medicines did I miss?">
+              “What medicines did I miss?”
+            </button>
+            <button type="button" class="btn-voice-prompt" data-prompt="Explain this medical term: Hypertension.">
+              “Explain medical term: Hypertension”
+            </button>
+          </div>
+        </div>
+
+        <!-- Assistant Response Box -->
+        <div class="assistant-response-card" id="assistantResponseCard">
+          <div class="response-header">
+            <span class="assistant-badge">MedGuide Response</span>
+            <button type="button" class="btn-speak-response" id="btnSpeakResponse" title="Read response aloud">🔊 Speak</button>
+          </div>
+          <p class="assistant-response-text" id="assistantResponseText">
+            Hello Alex! I can explain your medicines, check what's upcoming on your schedule, or define medical terms. Ask me anything!
+          </p>
+        </div>
+      </div>
+  <!-- ========================================================
+       MODAL 5: EDIT MEDICATION MODAL (Section 4: CRUD Edit)
+       ======================================================== -->
+  <div class="modal-backdrop" id="editMedModal" style="display: none;">
+    <div class="modal-dialog modal-dialog-md">
+      <div class="modal-header">
+        <h3 class="modal-title">Edit Prescribed Medication</h3>
+        <button type="button" class="modal-close-btn" id="closeEditMedModal">&times;</button>
+      </div>
+      <form id="editMedModalForm">
+        <input type="hidden" id="editMedId">
+        <div class="modal-body">
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label" for="editMedName">Medicine Name <span class="required-star">*</span></label>
+              <input type="text" id="editMedName" class="form-input" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="editMedStrength">Strength / Dosage <span class="required-star">*</span></label>
+              <input type="text" id="editMedStrength" class="form-input" required>
+            </div>
+          </div>
+
+          <div class="form-row-3">
+            <div class="form-group">
+              <label class="form-label" for="editMedCategory">Form</label>
+              <select id="editMedCategory" class="form-input">
+                <option value="Tablet">Tablet 💊</option>
+                <option value="Capsule">Capsule 💊</option>
+                <option value="Syrup">Syrup 🧴</option>
+                <option value="Injection">Injection 💉</option>
+                <option value="Drops">Drops 💧</option>
+                <option value="Inhaler">Inhaler 🫁</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="editMedFrequency">Frequency</label>
+              <select id="editMedFrequency" class="form-input">
+                <option value="Daily">Daily</option>
+                <option value="Twice Daily">Twice Daily</option>
+                <option value="Weekly">Weekly</option>
+                <option value="Custom">Custom</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="editMedTime">Scheduled Time <span class="required-star">*</span></label>
+              <input type="time" id="editMedTime" class="form-input" required>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label" for="editMedQuantity">Quantity / Pill Count</label>
+              <input type="number" id="editMedQuantity" class="form-input" min="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="editMedRefillThreshold">Refill Alert Threshold</label>
+              <input type="number" id="editMedRefillThreshold" class="form-input" min="1">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="editMedNotes">Instructions &amp; Notes</label>
+            <textarea id="editMedNotes" class="form-input" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" id="cancelEditMedModal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ========================================================
+       MODAL 6: EDIT SYMPTOM MODAL (Section 7: Symptom CRUD)
+       ======================================================== -->
+  <div class="modal-backdrop" id="editSymptomModal" style="display: none;">
+    <div class="modal-dialog modal-dialog-md">
+      <div class="modal-header">
+        <h3 class="modal-title">Edit Recorded Symptom</h3>
+        <button type="button" class="modal-close-btn" id="closeEditSymptomModal">&times;</button>
+      </div>
+      <form id="editSymptomModalForm">
+        <input type="hidden" id="editSymptomId">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="editSymptomName">Symptom Description</label>
+            <input type="text" id="editSymptomName" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">
+              Severity (1 to 5): <strong id="editSeverityVal" class="text-primary">3</strong>
+            </label>
+            <input type="range" id="editSymptomSeverity" min="1" max="5" value="3" class="severity-slider">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="editSymptomNotes">Additional Clinical Notes</label>
+            <textarea id="editSymptomNotes" class="form-input" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" id="cancelEditSymptomModal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Update Symptom</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Floating Toast Notifications -->
   <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
-  <!-- Application Script -->
+  <!-- Main JavaScript Application Architecture -->
   <script src="script.js"></script>
 </body>
 </html>
