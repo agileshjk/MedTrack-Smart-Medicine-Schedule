@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MedTrack Automated Test Suite</title>
+</head>
+<body>
+  <h1>MedTrack Test Runner</h1>
+  <div id="test-output">Running tests...</div>
+
+  <iframe id="appFrame" src="index.html" style="width: 1000px; height: 800px;"></iframe>
+
+  <script>
+    const results = [];
+    function assert(name, condition, details = '') {
+      if (condition) {
+        results.push({ name, status: 'PASS', details });
+        console.log(`[PASS] ${name}`, details);
+      } else {
+        results.push({ name, status: 'FAIL', details });
+        console.error(`[FAIL] ${name}`, details);
+      }
+    }
+
+    const frame = document.getElementById('appFrame');
+
+    frame.addEventListener('load', () => {
+      try {
+        const doc = frame.contentDocument;
+        const win = frame.contentWindow;
+
+        // Test 1: Title and Header
+        assert('App Title Present', doc.querySelector('.brand-title').textContent.includes('MedTrack'));
+        assert('SDG 3 Badge Present', doc.querySelector('.sdg-badge').textContent.includes('UN SDG 3'));
+        assert('Safety Notice Present', doc.querySelector('.safety-banner').textContent.includes('does not provide medical diagnosis or replace professional medical advice'));
+
+        // Test 2: LocalStorage and Sample Data Loaded
+        const meds = win.appState.medicines;
+        assert('Sample Medicines Loaded', meds && meds.length >= 4, `Found ${meds ? meds.length : 0} medicines`);
+
+        // Test 3: Dashboard Stats Accuracy
+        const totalStat = parseInt(doc.getElementById('statTotal').textContent, 10);
+        const takenStat = parseInt(doc.getElementById('statTaken').textContent, 10);
+        const pendingStat = parseInt(doc.getElementById('statPending').textContent, 10);
+        const skippedStat = parseInt(doc.getElementById('statSkipped').textContent, 10);
+        assert('Total equals sum of components', totalStat === (takenStat + pendingStat + skippedStat), `Total: ${totalStat}, Sum: ${takenStat + pendingStat + skippedStat}`);
+
+        const expectedPercent = totalStat > 0 ? Math.round((takenStat / totalStat) * 100) : 0;
+        const actualPercentText = doc.getElementById('progressPercentage').textContent;
+        assert('Adherence Percentage Calculation', actualPercentText === `${expectedPercent}%`, `Expected: ${expectedPercent}%, Got: ${actualPercentText}`);
+
+        // Test 4: Form Validation - Empty submission rejected
+        const initialCount = win.appState.medicines.length;
+        doc.getElementById('medName').value = '';
+        doc.getElementById('medDosage').value = '';
+        doc.getElementById('medTime').value = '';
+        doc.getElementById('btnAddMed').click();
+
+        assert('Empty Form Rejected', win.appState.medicines.length === initialCount, 'Medicines count unchanged after invalid submit');
+        assert('Name Error Shown', doc.getElementById('medNameError').textContent.length > 0);
+
+        // Test 5: Form Validation - Valid submission accepted
+        doc.getElementById('medName').value = 'Test Aspirin Cardio';
+        doc.getElementById('medDosage').value = '100 mg';
+        doc.getElementById('medTime').value = '14:30';
+        doc.getElementById('medFrequency').value = 'Daily';
+        doc.getElementById('medNotes').value = 'Take with water after meal';
+        doc.getElementById('btnAddMed').click();
+
+        const addedMed = win.appState.medicines.find(m => m.name === 'Test Aspirin Cardio');
+        assert('Valid Medicine Added', !!addedMed, 'Medicine was added to state');
+        assert('New Med Status is Pending', addedMed && addedMed.status === 'pending');
+        assert('Dashboard Total Updated', parseInt(doc.getElementById('statTotal').textContent, 10) === initialCount + 1);
+
+        // Test 6: Status Transition - Mark as Taken
+        const initialTaken = parseInt(doc.getElementById('statTaken').textContent, 10);
+        win.updateMedicineStatus(addedMed.id, 'taken');
+        assert('Status Updated to Taken', addedMed.status === 'taken');
+        assert('Stat Taken Incremented', parseInt(doc.getElementById('statTaken').textContent, 10) === initialTaken + 1);
+
+        // Verify History Log contains the new event
+        const latestHist = win.appState.history[0];
+        assert('History Event Recorded', latestHist && latestHist.medicineId === addedMed.id && latestHist.status === 'taken');
+
+        // Test 7: Status Transition - Mark as Skipped
+        win.updateMedicineStatus(addedMed.id, 'skipped');
+        assert('Status Updated to Skipped', addedMed.status === 'skipped');
+
+        // Test 8: Filter Tabs
+        win.appState.currentFilter = 'skipped';
+        win.renderSchedule();
+        const visibleCardsSkipped = doc.querySelectorAll('.med-card');
+        assert('Filter Skipped Shows Cards', visibleCardsSkipped.length >= 1);
+
+        win.appState.currentFilter = 'all';
+        win.renderSchedule();
+        const visibleCardsAll = doc.querySelectorAll('.med-card');
+        assert('Filter All Shows All Cards', visibleCardsAll.length === win.appState.medicines.length);
+
+        // Test 9: Search Query
+        win.appState.searchQuery = 'Aspirin';
+        win.renderSchedule();
+        const searchCards = doc.querySelectorAll('.med-card');
+        assert('Search Filters Accurately', searchCards.length === 1 && searchCards[0].textContent.includes('Aspirin'));
+
+        // Reset search
+        win.appState.searchQuery = '';
+        win.renderSchedule();
+
+        // Test 10: Test Reminder Modal
+        win.testReminder();
+        const modalBackdrop = doc.getElementById('reminderModalBackdrop');
+        assert('Reminder Modal Displayed', modalBackdrop.style.display === 'flex');
+        assert('Modal Medicine Name Populated', doc.getElementById('modalMedName').textContent.length > 0);
+
+        // Close modal
+        doc.getElementById('modalBtnDismiss').click();
+        assert('Modal Dismissed', modalBackdrop.style.display === 'none');
+
+        // Test 11: Audio Synthesizer Execution
+        try {
+          win.playReminderSound();
+          assert('Audio Chime Function Runs Without Exception', true);
+        } catch (e) {
+          assert('Audio Chime Function Runs Without Exception', false, e.message);
+        }
+
+        // Output Summary
+        const passedCount = results.filter(r => r.status === 'PASS').length;
+        const failedCount = results.filter(r => r.status === 'FAIL').length;
+        
+        let reportHtml = `<h2>Test Results: ${passedCount} Passed, ${failedCount} Failed</h2><ul>`;
+        results.forEach(r => {
+          reportHtml += `<li style="color: ${r.status === 'PASS' ? 'green' : 'red'}">[${r.status}] ${r.name} ${r.details ? '(' + r.details + ')' : ''}</li>`;
+        });
+        reportHtml += '</ul>';
+        document.getElementById('test-output').innerHTML = reportHtml;
+
+      } catch (err) {
+        console.error('Test runner failure:', err);
+        document.getElementById('test-output').innerHTML = `<h2 style="color:red">Fatal Test Runner Error: ${err.message}</h2>`;
+      }
+    });
+  </script>
+</body>
+</html>
