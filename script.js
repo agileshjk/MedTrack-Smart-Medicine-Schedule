@@ -7,10 +7,535 @@
  */
 
 // =============================================================
-// 1. API CLIENT & SESSION MANAGEMENT (Sections 1 & 14)
+// 1. IN-BROWSER MULTI-USER STORAGE ENGINE (Vercel Cloud & Offline Fallback)
 // =============================================================
 
-const API_BASE = ''; // Same origin (http://localhost:5000)
+const BrowserMultiUserStore = {
+  DB_KEY: 'medguide_browser_db_v2',
+  SESSION_KEY: 'medguide_browser_sessions_v2',
+
+  getStore() {
+    let raw = localStorage.getItem(this.DB_KEY);
+    if (!raw) {
+      const initial = this.createInitialStore();
+      localStorage.setItem(this.DB_KEY, JSON.stringify(initial));
+      return initial;
+    }
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      const initial = this.createInitialStore();
+      localStorage.setItem(this.DB_KEY, JSON.stringify(initial));
+      return initial;
+    }
+  },
+
+  saveStore(store) {
+    localStorage.setItem(this.DB_KEY, JSON.stringify(store));
+  },
+
+  getSessions() {
+    let raw = localStorage.getItem(this.SESSION_KEY);
+    if (!raw) return {};
+    try { return JSON.parse(raw); } catch (e) { return {}; }
+  },
+
+  saveSessions(sessions) {
+    localStorage.setItem(this.SESSION_KEY, JSON.stringify(sessions));
+  },
+
+  getUserIdFromToken(token) {
+    if (!token) return null;
+    const sessions = this.getSessions();
+    return sessions[token] || null;
+  },
+
+  createInitialStore() {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const nowIso = today.toISOString();
+
+    const adhAlex = [];
+    for (let i = 14; i >= 1; i--) {
+      const d = new Date();
+      d.setDate(today.getDate() - i);
+      const dStr = d.toISOString().split('T')[0];
+      const s1 = (i !== 4 && i !== 11) ? 'taken' : 'missed';
+      const s2 = (i !== 4 && i !== 11) ? 'taken' : 'missed';
+      const s3 = (i !== 7) ? 'taken' : 'delayed';
+
+      adhAlex.push({ id: `adh_alex_${i}_1`, user_id: 'user_alex_demo', medication_id: 'med_alex_1', medication_name: 'Metformin Hydrochloride', status: s1, scheduled_time: '08:00 AM', logged_at: `${dStr} 08:05:00`, date: dStr });
+      adhAlex.push({ id: `adh_alex_${i}_2`, user_id: 'user_alex_demo', medication_id: 'med_alex_2', medication_name: 'Lisinopril', status: s2, scheduled_time: '08:00 AM', logged_at: `${dStr} 08:06:00`, date: dStr });
+      adhAlex.push({ id: `adh_alex_${i}_3`, user_id: 'user_alex_demo', medication_id: 'med_alex_3', medication_name: 'Atorvastatin Calcium', status: s3, scheduled_time: '08:00 PM', logged_at: `${dStr} 20:15:00`, date: dStr });
+    }
+
+    const adhSarah = [];
+    for (let i = 10; i >= 1; i--) {
+      const d = new Date();
+      d.setDate(today.getDate() - i);
+      const dStr = d.toISOString().split('T')[0];
+      const s1 = (i !== 3 && i !== 8) ? 'taken' : 'missed';
+      adhSarah.push({ id: `adh_sarah_${i}_1`, user_id: 'user_sarah_demo', medication_id: 'med_sarah_1', medication_name: 'Albuterol Sulfate Inhaler', status: s1, scheduled_time: '10:00 AM', logged_at: `${dStr} 10:05:00`, date: dStr });
+      adhSarah.push({ id: `adh_sarah_${i}_2`, user_id: 'user_sarah_demo', medication_id: 'med_sarah_2', medication_name: 'Cetirizine Hydrochloride', status: 'taken', scheduled_time: '09:00 PM', logged_at: `${dStr} 21:00:00`, date: dStr });
+    }
+
+    return {
+      users: [
+        { id: 'user_alex_demo', email: 'alex@example.com', password: 'password123', created_at: nowIso },
+        { id: 'user_sarah_demo', email: 'sarah@example.com', password: 'password123', created_at: nowIso }
+      ],
+      profiles: {
+        'user_alex_demo': { user_id: 'user_alex_demo', name: 'Alex Johnson', age: 52, gender: 'Male', height: 176, weight: 81, blood_type: 'O+', sleep_avg: '7.2 hours', conditions: 'Type 2 Diabetes Mellitus, Essential Primary Hypertension', allergies: 'Penicillin (Severe Rash), Shellfish', photo_url: '', updated_at: nowIso },
+        'user_sarah_demo': { user_id: 'user_sarah_demo', name: 'Sarah Davis', age: 34, gender: 'Female', height: 165, weight: 62, blood_type: 'A+', sleep_avg: '8.0 hours', conditions: 'Bronchial Asthma, Allergic Rhinitis', allergies: 'Sulfa drugs, Pollen', photo_url: '', updated_at: nowIso }
+      },
+      medications: [
+        { id: 'med_alex_1', user_id: 'user_alex_demo', name: 'Metformin Hydrochloride', strength: '500 mg', dosage_instructions: '1 tablet with breakfast', category: 'Tablet', frequency: 'Daily', time: '08:00', quantity: 10, refill_threshold: 7, status: 'taken', notes: 'Take with breakfast.', last_action_date: todayStr, last_action_time: '08:05 AM', created_at: nowIso },
+        { id: 'med_alex_2', user_id: 'user_alex_demo', name: 'Lisinopril', strength: '10 mg', dosage_instructions: '1 tablet in morning', category: 'Tablet', frequency: 'Daily', time: '08:00', quantity: 24, refill_threshold: 7, status: 'taken', notes: 'ACE inhibitor for blood pressure.', last_action_date: todayStr, last_action_time: '08:06 AM', created_at: nowIso },
+        { id: 'med_alex_3', user_id: 'user_alex_demo', name: 'Atorvastatin Calcium', strength: '20 mg', dosage_instructions: '1 tablet with dinner', category: 'Tablet', frequency: 'Daily', time: '20:00', quantity: 28, refill_threshold: 7, status: 'pending', notes: 'Avoid grapefruit juice.', last_action_date: todayStr, last_action_time: '', created_at: nowIso },
+        
+        { id: 'med_sarah_1', user_id: 'user_sarah_demo', name: 'Albuterol Sulfate Inhaler', strength: '90 mcg', dosage_instructions: '2 puffs as needed for bronchospasm', category: 'Inhaler', frequency: 'As Needed', time: '10:00', quantity: 14, refill_threshold: 5, status: 'taken', notes: 'Rinse mouth after inhalation.', last_action_date: todayStr, last_action_time: '10:05 AM', created_at: nowIso },
+        { id: 'med_sarah_2', user_id: 'user_sarah_demo', name: 'Cetirizine Hydrochloride', strength: '10 mg', dosage_instructions: '1 tablet daily at bedtime', category: 'Tablet', frequency: 'Daily', time: '21:00', quantity: 20, refill_threshold: 7, status: 'pending', notes: 'Take at bedtime.', last_action_date: todayStr, last_action_time: '', created_at: nowIso }
+      ],
+      adherence_records: [...adhAlex, ...adhSarah],
+      symptoms: [
+        { id: 'sym_a_1', user_id: 'user_alex_demo', name: 'Fatigue / Low Energy', severity: 2, date: todayStr, time: '14:30', medication_name: 'Metformin Hydrochloride', notes: 'Slight midafternoon tiredness.', created_at: nowIso },
+        { id: 'sym_a_2', user_id: 'user_alex_demo', name: 'Fatigue / Low Energy', severity: 4, date: todayStr, time: '16:15', medication_name: 'Metformin Hydrochloride', notes: 'Persistent tiredness; felt exhausted.', created_at: nowIso },
+        { id: 'sym_a_3', user_id: 'user_alex_demo', name: 'Mild Dizziness', severity: 2, date: todayStr, time: '09:30', medication_name: 'Lisinopril', notes: 'Brief dizziness upon standing.', created_at: nowIso },
+        { id: 'sym_s_1', user_id: 'user_sarah_demo', name: 'Mild Wheezing', severity: 2, date: todayStr, time: '11:00', medication_name: 'Albuterol Sulfate Inhaler', notes: 'Triggered by cold morning breeze.', created_at: nowIso },
+        { id: 'sym_s_2', user_id: 'user_sarah_demo', name: 'Nasal Congestion', severity: 2, date: todayStr, time: '08:00', medication_name: 'Cetirizine Hydrochloride', notes: 'Seasonal pollen reaction.', created_at: nowIso }
+      ],
+      prescriptions: [
+        { id: 'rx_alex_1', user_id: 'user_alex_demo', title: 'Internal Medicine Regimen', doctor_name: 'Dr. Robert Vance, MD', date_issued: todayStr, extracted_data: 'Metformin 500mg, Lisinopril 10mg, Atorvastatin 20mg', status: 'verified', created_at: nowIso },
+        { id: 'rx_sarah_1', user_id: 'user_sarah_demo', title: 'Pulmonology Maintenance', doctor_name: 'Dr. Emily Clark, MD', date_issued: todayStr, extracted_data: 'Albuterol Inhaler 90mcg, Cetirizine 10mg', status: 'verified', created_at: nowIso }
+      ],
+      diet_preferences: {
+        'user_alex_demo': { user_id: 'user_alex_demo', cuisine: 'South Indian', dietary_style: 'Vegetarian', activity_level: 'Moderate', updated_at: nowIso },
+        'user_sarah_demo': { user_id: 'user_sarah_demo', cuisine: 'Mediterranean', dietary_style: 'Non-Vegetarian', activity_level: 'Active', updated_at: nowIso }
+      },
+      caregivers: {
+        'user_alex_demo': { user_id: 'user_alex_demo', name: 'Sarah Johnson', relation: 'Daughter', phone: '(555) 234-5678', email: 'sarah.j@example.com', perm_missed_doses: 1, perm_adherence: 1, perm_med_list: 1, perm_symptoms: 0, updated_at: nowIso },
+        'user_sarah_demo': { user_id: 'user_sarah_demo', name: 'David Davis', relation: 'Spouse', phone: '(555) 876-5432', email: 'david.d@example.com', perm_missed_doses: 1, perm_adherence: 1, perm_med_list: 1, perm_symptoms: 1, updated_at: nowIso }
+      },
+      emergency_cards: {
+        'user_alex_demo': { user_id: 'user_alex_demo', ice_contact_name: 'Sarah Johnson (Daughter)', ice_contact_phone: '(555) 234-5678', doctor_name: 'Dr. Robert Vance, MD', doctor_phone: '(555) 987-6543', custom_notes: 'Patient has Type 2 Diabetes and Hypertension.', updated_at: nowIso },
+        'user_sarah_demo': { user_id: 'user_sarah_demo', ice_contact_name: 'David Davis (Spouse)', ice_contact_phone: '(555) 876-5432', doctor_name: 'Dr. Emily Clark, MD', doctor_phone: '(555) 345-6789', custom_notes: 'Patient has Bronchial Asthma.', updated_at: nowIso }
+      }
+    };
+  },
+
+  handleRequest(path, method, body, token) {
+    const store = this.getStore();
+    const sessions = this.getSessions();
+    const nowIso = new Date().toISOString();
+    const todayStr = nowIso.split('T')[0];
+
+    // Auth Public
+    if (path === '/api/auth/login') {
+      const email = (body.email || '').trim().toLowerCase();
+      const password = body.password || '';
+      const user = store.users.find(u => u.email.toLowerCase() === email && u.password === password);
+      if (!user) return { error: 'Invalid email address or password.', status: 401 };
+
+      const newToken = 'tok_' + Math.random().toString(36).substring(2) + Date.now();
+      sessions[newToken] = user.id;
+      this.saveSessions(sessions);
+      const profile = store.profiles[user.id] || { name: 'User' };
+      return { success: true, token: newToken, user: { id: user.id, email: user.email, name: profile.name } };
+    }
+
+    if (path === '/api/auth/demo-login') {
+      const target = body.target === 'sarah' ? 'user_sarah_demo' : 'user_alex_demo';
+      const user = store.users.find(u => u.id === target);
+      if (!user) return { error: 'Demo user not found', status: 404 };
+
+      const newToken = 'tok_' + Math.random().toString(36).substring(2) + Date.now();
+      sessions[newToken] = user.id;
+      this.saveSessions(sessions);
+      const profile = store.profiles[user.id] || { name: user.id === 'user_alex_demo' ? 'Alex Johnson' : 'Sarah Davis' };
+      return { success: true, token: newToken, user: { id: user.id, email: user.email, name: profile.name } };
+    }
+
+    if (path === '/api/auth/register') {
+      const email = (body.email || '').trim().toLowerCase();
+      const password = body.password || '';
+      const name = (body.name || '').trim();
+      if (!email || !password || !name) return { error: 'Full name, email, and password are required.', status: 400 };
+
+      if (store.users.some(u => u.email.toLowerCase() === email)) {
+        return { error: 'An account with this email address already exists.', status: 400 };
+      }
+
+      const newId = 'user_' + Math.random().toString(36).substring(2);
+      store.users.push({ id: newId, email, password, created_at: nowIso });
+      store.profiles[newId] = { user_id: newId, name, age: 30, gender: 'Prefer not to say', height: 170, weight: 70, blood_type: 'O+', sleep_avg: '7.5 hours', conditions: '', allergies: '', photo_url: '', updated_at: nowIso };
+      store.diet_preferences[newId] = { user_id: newId, cuisine: 'South Indian', dietary_style: 'Vegetarian', activity_level: 'Moderate', updated_at: nowIso };
+      store.caregivers[newId] = { user_id: newId, name: '', relation: '', phone: '', email: '', perm_missed_doses: 1, perm_adherence: 1, perm_med_list: 1, perm_symptoms: 0, updated_at: nowIso };
+      store.emergency_cards[newId] = { user_id: newId, ice_contact_name: '', ice_contact_phone: '', doctor_name: '', doctor_phone: '', custom_notes: '', updated_at: nowIso };
+      this.saveStore(store);
+
+      const newToken = 'tok_' + Math.random().toString(36).substring(2) + Date.now();
+      sessions[newToken] = newId;
+      this.saveSessions(sessions);
+      return { success: true, token: newToken, user: { id: newId, email, name } };
+    }
+
+    if (path === '/api/auth/reset-password') {
+      const email = (body.email || '').trim().toLowerCase();
+      const user = store.users.find(u => u.email.toLowerCase() === email);
+      if (user) {
+        user.password = 'password123';
+        this.saveStore(store);
+        return { success: true, message: "Password reset successfully! Temporary password is set to 'password123'. Please sign in and update your password in Settings." };
+      }
+      return { error: 'No account found with this email.', status: 404 };
+    }
+
+    // Protected Auth
+    const userId = this.getUserIdFromToken(token);
+    if (!userId) return { error: 'Unauthorized', status: 401 };
+
+    if (path === '/api/auth/me') {
+      const user = store.users.find(u => u.id === userId);
+      if (!user) return { error: 'Unauthorized', status: 401 };
+      const profile = store.profiles[userId] || { name: 'User' };
+      return { user: { id: user.id, email: user.email, name: profile.name } };
+    }
+
+    if (path === '/api/auth/logout') {
+      if (token && sessions[token]) {
+        delete sessions[token];
+        this.saveSessions(sessions);
+      }
+      return { success: true };
+    }
+
+    // Profile
+    if (path === '/api/profile') {
+      if (method === 'GET') {
+        const prof = store.profiles[userId] || { user_id: userId, name: 'User' };
+        const user = store.users.find(u => u.id === userId) || {};
+        return { ...prof, email: user.email };
+      }
+      if (method === 'PUT') {
+        const cur = store.profiles[userId] || { user_id: userId };
+        store.profiles[userId] = { ...cur, ...body, user_id: userId, updated_at: nowIso };
+        this.saveStore(store);
+        return { success: true, profile: store.profiles[userId] };
+      }
+    }
+
+    // Medications
+    if (path === '/api/medications') {
+      if (method === 'GET') {
+        return { medications: store.medications.filter(m => m.user_id === userId) };
+      }
+      if (method === 'POST') {
+        const medId = 'med_' + Math.random().toString(36).substring(2);
+        const newMed = {
+          id: medId,
+          user_id: userId,
+          name: body.name || '',
+          strength: body.strength || '',
+          dosage_instructions: body.dosageInstructions || body.dosage_instructions || '',
+          category: body.category || 'Tablet',
+          frequency: body.frequency || 'Daily',
+          time: body.time || '08:00',
+          quantity: parseInt(body.quantity || 30, 10),
+          refill_threshold: parseInt(body.refillThreshold || body.refill_threshold || 7, 10),
+          status: 'pending',
+          notes: body.notes || '',
+          last_action_date: todayStr,
+          last_action_time: '',
+          created_at: nowIso
+        };
+        store.medications.push(newMed);
+        this.saveStore(store);
+        return { success: true, medication: newMed };
+      }
+    }
+
+    if (path.startsWith('/api/medications/') && path.endsWith('/action')) {
+      const parts = path.split('/');
+      const medId = parts[3];
+      const med = store.medications.find(m => m.id === medId && m.user_id === userId);
+      if (!med) return { error: 'Medication not found', status: 404 };
+
+      const action = body.action || 'taken';
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      if (action === 'taken') {
+        med.status = 'taken';
+        med.quantity = Math.max(0, (med.quantity || 30) - 1);
+        med.last_action_date = todayStr;
+        med.last_action_time = timeStr;
+        store.adherence_records.push({
+          id: 'adh_' + Math.random().toString(36).substring(2),
+          user_id: userId,
+          medication_id: med.id,
+          medication_name: med.name,
+          status: 'taken',
+          scheduled_time: med.time,
+          logged_at: nowIso,
+          date: todayStr
+        });
+      } else if (action === 'skipped') {
+        med.status = 'skipped';
+        med.last_action_date = todayStr;
+        med.last_action_time = timeStr;
+        store.adherence_records.push({
+          id: 'adh_' + Math.random().toString(36).substring(2),
+          user_id: userId,
+          medication_id: med.id,
+          medication_name: med.name,
+          status: 'missed',
+          scheduled_time: med.time,
+          logged_at: nowIso,
+          date: todayStr
+        });
+      } else if (action === 'undo') {
+        med.status = 'pending';
+        med.last_action_time = '';
+      } else if (action === 'refill') {
+        const added = parseInt(body.amount || 30, 10);
+        med.quantity = (med.quantity || 0) + added;
+      }
+      this.saveStore(store);
+      return { success: true, medication: med };
+    }
+
+    if (path.startsWith('/api/medications/')) {
+      const parts = path.split('/');
+      const medId = parts[3];
+      const medIndex = store.medications.findIndex(m => m.id === medId && m.user_id === userId);
+      if (medIndex === -1) return { error: 'Medication not found', status: 404 };
+
+      if (method === 'PUT') {
+        const cur = store.medications[medIndex];
+        store.medications[medIndex] = {
+          ...cur,
+          name: body.name !== undefined ? body.name : cur.name,
+          strength: body.strength !== undefined ? body.strength : cur.strength,
+          dosage_instructions: body.dosage_instructions !== undefined ? body.dosage_instructions : cur.dosage_instructions,
+          category: body.category !== undefined ? body.category : cur.category,
+          frequency: body.frequency !== undefined ? body.frequency : cur.frequency,
+          time: body.time !== undefined ? body.time : cur.time,
+          quantity: body.quantity !== undefined ? parseInt(body.quantity, 10) : cur.quantity,
+          refill_threshold: body.refill_threshold !== undefined ? parseInt(body.refill_threshold, 10) : cur.refill_threshold,
+          notes: body.notes !== undefined ? body.notes : cur.notes
+        };
+        this.saveStore(store);
+        return { success: true, medication: store.medications[medIndex] };
+      }
+
+      if (method === 'DELETE') {
+        store.medications.splice(medIndex, 1);
+        this.saveStore(store);
+        return { success: true };
+      }
+    }
+
+    // Adherence
+    if (path === '/api/adherence') {
+      const recs = store.adherence_records.filter(r => r.user_id === userId);
+      const todayRecs = recs.filter(r => r.date === todayStr);
+      const total = recs.length;
+      const taken = recs.filter(r => r.status === 'taken').length;
+      const missed = recs.filter(r => r.status === 'missed').length;
+      const delayed = recs.filter(r => r.status === 'delayed').length;
+      const percentage = total > 0 ? Math.round((taken / total) * 100) : 0;
+      return {
+        adherence_rate: total > 0 ? percentage : null,
+        total_doses: total,
+        taken_doses: taken,
+        missed_doses: missed,
+        delayed_doses: delayed,
+        taken_today: todayRecs.filter(r => r.status === 'taken').length,
+        missed_today: todayRecs.filter(r => r.status === 'missed').length,
+        records: recs
+      };
+    }
+
+    // Symptoms
+    if (path === '/api/symptoms') {
+      if (method === 'GET') {
+        return { symptoms: store.symptoms.filter(s => s.user_id === userId) };
+      }
+      if (method === 'POST') {
+        const sym = {
+          id: 'sym_' + Math.random().toString(36).substring(2),
+          user_id: userId,
+          name: body.name || '',
+          severity: parseInt(body.severity || 1, 10),
+          date: body.date || todayStr,
+          time: body.time || '12:00',
+          medication_name: body.medication_name || '',
+          notes: body.notes || '',
+          created_at: nowIso
+        };
+        store.symptoms.push(sym);
+        this.saveStore(store);
+        return { success: true, symptom: sym };
+      }
+    }
+
+    if (path.startsWith('/api/symptoms/')) {
+      const parts = path.split('/');
+      const symId = parts[3];
+      const symIndex = store.symptoms.findIndex(s => s.id === symId && s.user_id === userId);
+      if (symIndex === -1) return { error: 'Symptom not found', status: 404 };
+
+      if (method === 'PUT') {
+        store.symptoms[symIndex] = { ...store.symptoms[symIndex], ...body };
+        this.saveStore(store);
+        return { success: true, symptom: store.symptoms[symIndex] };
+      }
+      if (method === 'DELETE') {
+        store.symptoms.splice(symIndex, 1);
+        this.saveStore(store);
+        return { success: true };
+      }
+    }
+
+    // Prescriptions
+    if (path === '/api/prescriptions') {
+      if (method === 'GET') {
+        return { prescriptions: store.prescriptions.filter(p => p.user_id === userId) };
+      }
+      if (method === 'POST') {
+        const rx = {
+          id: 'rx_' + Math.random().toString(36).substring(2),
+          user_id: userId,
+          title: body.title || 'Prescription',
+          doctor_name: body.doctor_name || '',
+          date_issued: body.date_issued || todayStr,
+          extracted_data: body.extracted_data || '',
+          status: 'verified',
+          created_at: nowIso
+        };
+        store.prescriptions.push(rx);
+        this.saveStore(store);
+        return { success: true, prescription: rx };
+      }
+    }
+
+    // Diet
+    if (path === '/api/diet') {
+      if (method === 'GET') {
+        return store.diet_preferences[userId] || { cuisine: 'South Indian', dietary_style: 'Vegetarian', activity_level: 'Moderate' };
+      }
+      if (method === 'PUT') {
+        store.diet_preferences[userId] = { ...body, user_id: userId, updated_at: nowIso };
+        this.saveStore(store);
+        return { success: true };
+      }
+    }
+
+    // Caregiver
+    if (path === '/api/caregiver') {
+      if (method === 'GET') {
+        return store.caregivers[userId] || { name: '', relation: '', phone: '', email: '', perm_missed_doses: 1, perm_adherence: 1, perm_med_list: 1, perm_symptoms: 0 };
+      }
+      if (method === 'PUT') {
+        store.caregivers[userId] = { ...body, user_id: userId, updated_at: nowIso };
+        this.saveStore(store);
+        return { success: true };
+      }
+    }
+
+    // Emergency Card
+    if (path === '/api/emergency-card') {
+      if (method === 'GET') {
+        return store.emergency_cards[userId] || { ice_contact_name: '', ice_contact_phone: '', doctor_name: '', doctor_phone: '', custom_notes: '' };
+      }
+      if (method === 'PUT') {
+        store.emergency_cards[userId] = { ...body, user_id: userId, updated_at: nowIso };
+        this.saveStore(store);
+        return { success: true };
+      }
+    }
+
+    // Insights
+    if (path === '/api/insights') {
+      const adh = store.adherence_records.filter(r => r.user_id === userId);
+      const syms = store.symptoms.filter(s => s.user_id === userId);
+      const meds = store.medications.filter(m => m.user_id === userId);
+
+      const totalDoses = adh.length;
+      const takenDoses = adh.filter(r => r.status === 'taken').length;
+      const missedDoses = adh.filter(r => r.status === 'missed').length;
+
+      if (totalDoses === 0 && meds.length === 0) {
+        return {
+          insights: [],
+          message: 'Not enough data yet. Add medications, adherence records, or symptoms to generate insights.'
+        };
+      }
+
+      const insights = [];
+      if (totalDoses > 0) {
+        const adhPct = Math.round((takenDoses / totalDoses) * 100);
+        insights.push({
+          id: 'ins_adh',
+          type: 'adherence',
+          title: `Actual Medication Adherence: ${adhPct}%`,
+          category: 'Adherence Track',
+          badge: `${takenDoses} of ${totalDoses} Doses`,
+          text: `Your recorded medication adherence is ${adhPct}% across ${totalDoses} recorded dose events.`
+        });
+      }
+
+      if (missedDoses > 0) {
+        insights.push({
+          id: 'ins_missed',
+          type: 'adherence',
+          title: `Identified Missed Doses: ${missedDoses}`,
+          category: 'Missed Doses',
+          badge: 'Advisory',
+          text: `You have ${missedDoses} recorded missed doses. Aligning reminders with daily meal habits helps reduce omissions.`
+        });
+      }
+
+      if (syms.length >= 2) {
+        const recentHigh = syms.filter(s => s.severity >= 3);
+        if (recentHigh.length >= 2) {
+          insights.push({
+            id: 'ins_sym_rec',
+            type: 'symptom',
+            title: 'Recurring Symptom Pattern Detected',
+            category: 'Clinical Trend',
+            badge: 'Pattern Found',
+            text: `A recurring pattern appears in your records (${recentHigh[0].name} rated ${recentHigh[0].severity}/5). Consider discussing this pattern with your healthcare professional.`
+          });
+        }
+      }
+
+      for (const m of meds) {
+        const qty = m.quantity !== undefined ? m.quantity : 30;
+        const thresh = m.refill_threshold !== undefined ? m.refill_threshold : 7;
+        if (qty <= thresh) {
+          insights.push({
+            id: `ins_refill_${m.id}`,
+            type: 'lifestyle',
+            title: `Low Supply Alert: ${m.name}`,
+            category: 'Refill Buffer',
+            badge: 'Action Needed',
+            text: `Your recorded supply for ${m.name} is at ${qty} units. Requesting a refill promptly ensures unhindered regimen continuity.`
+          });
+        }
+      }
+
+      return { insights, message: '' };
+    }
+
+    return { error: 'Endpoint not found', status: 404 };
+  }
+};
+
+// =============================================================
+// 2. API CLIENT & HYBRID ROUTER
+// =============================================================
+
+const API_BASE = ''; // Same origin
 const TOKEN_KEY = 'medguide_session_token';
 
 const ApiClient = {
@@ -27,39 +552,40 @@ const ApiClient = {
   },
 
   async request(path, method = 'GET', body = null) {
-    const headers = { 'Content-Type': 'application/json' };
-    const token = this.getToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
+    const isLocalServer = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port === '5000';
 
-    const options = { method, headers };
-    if (body) {
-      options.body = JSON.stringify(body);
-    }
+    // If running on local python server (http://localhost:5000), use REST backend
+    if (isLocalServer) {
+      const headers = { 'Content-Type': 'application/json' };
+      const token = this.getToken();
+      if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    try {
-      const resp = await fetch(`${API_BASE}${path}`, options);
-      const data = await resp.json().catch(() => ({}));
+      const options = { method, headers };
+      if (body) options.body = JSON.stringify(body);
 
-      if (resp.status === 401) {
-        // Unauthorized - session expired or invalid
-        if (path !== '/api/auth/me') {
-          showToast('Session expired or unauthorized. Please sign in.', 'warning');
-          handleLogoutUI();
+      try {
+        const resp = await fetch(`${API_BASE}${path}`, options);
+        if (resp.status === 401) {
+          if (path !== '/api/auth/me') {
+            showToast('Session expired or unauthorized. Please sign in.', 'warning');
+            handleLogoutUI();
+          }
+          return { error: 'Unauthorized', status: 401 };
         }
-        return { error: 'Unauthorized', status: 401 };
+        if (resp.ok) {
+          return await resp.json().catch(() => ({}));
+        }
+        if (resp.status !== 404) {
+          const errData = await resp.json().catch(() => ({}));
+          return { error: errData.error || 'Server error', status: resp.status };
+        }
+      } catch (err) {
+        // Fall through to in-browser multi-user engine
       }
-
-      if (!resp.ok) {
-        return { error: data.error || 'Server error', status: resp.status };
-      }
-
-      return data;
-    } catch (err) {
-      console.warn('Network request failed, check if server.py is running:', err);
-      return { error: 'Unable to connect to local server (http://localhost:5000).', status: 0 };
     }
+
+    // Seamless in-browser engine for Vercel, static cloud deployments, and offline
+    return BrowserMultiUserStore.handleRequest(path, method, body, this.getToken());
   },
 
   // Auth Endpoints

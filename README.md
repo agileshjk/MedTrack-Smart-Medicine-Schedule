@@ -93,3 +93,16 @@ To run manually at any time:
 python server.py
 ```
 Open `http://localhost:5000` in any web browser.
+
+---
+
+## ⚡ Deployment to Vercel (Production)
+
+The application includes native Vercel configuration (`vercel.json`) and an adaptive cloud multi-user engine:
+
+1. Go to [vercel.com](https://vercel.com) and click **"Import Project"**.
+2. Select your repository: `MedTrack-Smart-Medicine-Schedule`.
+3. Keep default settings (Framework: *Other*, Root: `./`) and click **"Deploy"**.
+4. Vercel provides a live URL (e.g., `https://med-track-smart-medicine-schedule.vercel.app`).
+5. All multi-user accounts, 1-click demo patients, full medication CRUD, adherence tracking, dynamic insights, and symptom charts work 100% identically to localhost.
+
